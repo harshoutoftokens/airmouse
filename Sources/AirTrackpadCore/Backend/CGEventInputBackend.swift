@@ -132,7 +132,11 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
     }
     
     public func triggerMissionControl() {
-        // Virtual key code: Up Arrow = 0x7E with Control modifier
+        // Direct launch of native macOS Mission Control app
+        let url = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        
+        // Fallback: Virtual key code Up Arrow = 0x7E with Control modifier
         postKeyCombination(keyCode: 0x7E, modifiers: .maskControl)
     }
     
@@ -157,16 +161,37 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
     }
     
     private func postKeyCombination(keyCode: UInt16, modifiers: CGEventFlags) {
-        guard let down = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false) else { return }
+        let src = CGEventSource(stateID: .hidSystemState)
+        let ctrlKey: UInt16 = 0x3B // Control key
         
-        down.flags = modifiers
-        up.flags = []
+        // 1. Modifier Key Down
+        let ctrlDown = CGEvent(keyboardEventSource: src, virtualKey: ctrlKey, keyDown: true)
+        ctrlDown?.flags = modifiers
+        ctrlDown?.post(tap: .cghidEventTap)
+        ctrlDown?.post(tap: .cgSessionEventTap)
         
-        down.post(tap: .cghidEventTap)
-        down.post(tap: .cgSessionEventTap)
-        usleep(35_000)
-        up.post(tap: .cghidEventTap)
-        up.post(tap: .cgSessionEventTap)
+        usleep(15_000)
+        
+        // 2. Action Key Down
+        let keyDown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true)
+        keyDown?.flags = modifiers
+        keyDown?.post(tap: .cghidEventTap)
+        keyDown?.post(tap: .cgSessionEventTap)
+        
+        usleep(40_000)
+        
+        // 3. Action Key Up
+        let keyUp = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false)
+        keyUp?.flags = modifiers
+        keyUp?.post(tap: .cghidEventTap)
+        keyUp?.post(tap: .cgSessionEventTap)
+        
+        usleep(15_000)
+        
+        // 4. Modifier Key Up
+        let ctrlUp = CGEvent(keyboardEventSource: src, virtualKey: ctrlKey, keyDown: false)
+        ctrlUp?.flags = []
+        ctrlUp?.post(tap: .cghidEventTap)
+        ctrlUp?.post(tap: .cgSessionEventTap)
     }
 }

@@ -36,17 +36,17 @@ public final class GestureStateMachine: @unchecked Sendable {
     
     // 4-Finger Fast Swipe parameters
     public var swipeMinDisplacement: Double = 0.10
-    public var swipeMinVelocity: Double = 0.45
-    public var swipeMaxDuration: TimeInterval = 0.35
-    public var swipeDirectionRatio: Double = 2.0
-    public var swipeCooldownDuration: TimeInterval = 0.50
+    public var swipeMinVelocity: Double = 0.30
+    public var swipeMaxDuration: TimeInterval = 0.40
+    public var swipeDirectionRatio: Double = 1.3
+    public var swipeCooldownDuration: TimeInterval = 0.40
     
     // 5-Finger Mission Control parameters
-    public var fiveFingerOpenThreshold: Double = 0.48
-    public var fiveFingerPinchThreshold: Double = 0.22
-    public var fiveFingerMaxSequenceDuration: TimeInterval = 1.20
-    public var fiveFingerMinSequenceDuration: TimeInterval = 0.25
-    public var missionControlCooldownDuration: TimeInterval = 0.60
+    public var fiveFingerOpenThreshold: Double = 0.46
+    public var fiveFingerPinchThreshold: Double = 0.25
+    public var fiveFingerMaxSequenceDuration: TimeInterval = 1.40
+    public var fiveFingerMinSequenceDuration: TimeInterval = 0.15
+    public var missionControlCooldownDuration: TimeInterval = 0.50
     
     // Timers & internal tracking
     private var pinchStartTime: TimeInterval?
@@ -146,7 +146,10 @@ public final class GestureStateMachine: @unchecked Sendable {
         centroidHistory.removeAll { timestamp - $0.timestamp > swipeMaxDuration }
         
         // 3. PRIORITY 1: FIVE-FINGER MISSION CONTROL SEQUENCE
-        if extCount >= 5 || currentState == .fiveFingerPinchLocked || currentState == .fiveFingerExpanding || currentState == .fiveFingerContracting {
+        let isFiveFingerState = currentState.rawValue.contains("FIVE_FINGER")
+        let isFiveFingerPose = (extCount >= 5 && spread >= fiveFingerOpenThreshold)
+        
+        if isFiveFingerState || isFiveFingerPose {
             let events = processFiveFingerSequence(metrics: metrics, timestamp: timestamp)
             if !events.isEmpty {
                 return events
@@ -157,7 +160,13 @@ public final class GestureStateMachine: @unchecked Sendable {
         }
         
         // 4. PRIORITY 2: FOUR-FINGER FAST SWIPE
-        if extCount == 4 {
+        let isIndexExtended = (metrics.state(for: .index) == .extended)
+        let isMiddleExtended = (metrics.state(for: .middle) == .extended)
+        let isRingExtended = (metrics.state(for: .ring) == .extended)
+        let isLittleExtended = (metrics.state(for: .little) == .extended)
+        
+        let isFourFingerPose = (extCount >= 3 && extCount <= 5 && isIndexExtended && isMiddleExtended && isRingExtended) || extCount == 4
+        if isFourFingerPose {
             let events = processFourFingerSwipe(timestamp: timestamp)
             if !events.isEmpty {
                 return events
@@ -167,10 +176,6 @@ public final class GestureStateMachine: @unchecked Sendable {
         }
         
         // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
-        let isIndexExtended = (metrics.state(for: .index) == .extended)
-        let isMiddleExtended = (metrics.state(for: .middle) == .extended)
-        let isRingExtended = (metrics.state(for: .ring) == .extended)
-        let isLittleExtended = (metrics.state(for: .little) == .extended)
         
         let isPinchTriggered = isIndexExtended && (pinchDist < pinchStartThreshold) && !isRingExtended && !isLittleExtended
         let isPointingWithOneFinger = isIndexExtended && !isMiddleExtended && !isRingExtended && !isLittleExtended && (pinchDist >= pinchStartThreshold)
@@ -283,11 +288,11 @@ public final class GestureStateMachine: @unchecked Sendable {
     
     // MARK: - Four-Finger Fast Swipe Kinematics
     private func processFourFingerSwipe(timestamp: TimeInterval) -> [AbstractGestureEvent] {
-        guard centroidHistory.count >= 3 else { return [] }
+        guard centroidHistory.count >= 2 else { return [] }
         guard let first = centroidHistory.first, let last = centroidHistory.last else { return [] }
         
         let dt = last.timestamp - first.timestamp
-        guard dt >= 0.05 && dt <= swipeMaxDuration else { return [] }
+        guard dt >= 0.04 && dt <= swipeMaxDuration else { return [] }
         
         let dx = last.point.x - first.point.x
         let dy = last.point.y - first.point.y
@@ -313,14 +318,20 @@ public final class GestureStateMachine: @unchecked Sendable {
         
         switch currentState {
         case .idle, .oneFingerCursor, .twoFingerDetected, .fourFingerCandidate:
-            if extCount >= 5 && spread >= fiveFingerOpenThreshold {
+            if extCount >= 4 && spread >= fiveFingerOpenThreshold {
                 currentState = .fiveFingerOpen
+                fiveFingerSequenceStartTime = timestamp
+            } else if spread <= fiveFingerPinchThreshold {
+                currentState = .fiveFingerPinchLocked
                 fiveFingerSequenceStartTime = timestamp
             }
             
         case .fiveFingerOpen:
             if spread < fiveFingerOpenThreshold - 0.05 {
                 currentState = .fiveFingerContracting
+            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
+                currentState = .idle
+                fiveFingerSequenceStartTime = nil
             }
             
         case .fiveFingerContracting:
@@ -332,7 +343,7 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             
         case .fiveFingerPinchLocked:
-            if spread > fiveFingerPinchThreshold + 0.08 {
+            if spread > fiveFingerPinchThreshold + 0.06 {
                 currentState = .fiveFingerExpanding
             } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
                 currentState = .idle
@@ -356,6 +367,9 @@ public final class GestureStateMachine: @unchecked Sendable {
                     currentState = .idle
                     fiveFingerSequenceStartTime = nil
                 }
+            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
+                currentState = .idle
+                fiveFingerSequenceStartTime = nil
             }
             
         default:
