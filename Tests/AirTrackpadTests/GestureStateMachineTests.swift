@@ -7,11 +7,13 @@ final class GestureStateMachineTests: XCTestCase {
         timestamp: TimeInterval,
         extendedFingers: Int,
         pinchDistance: Double,
-        indexTip: Landmark = Landmark(x: 0.5, y: 0.5)
+        spread: Double = 0.5,
+        centroid: Landmark = Landmark(x: 0.5, y: 0.5)
     ) -> (HandObservation, HandMetrics) {
-        let wrist = Landmark(x: 0.5, y: 0.1)
-        let middleMCP = Landmark(x: 0.5, y: 0.3)
-        let thumbTip = Landmark(x: indexTip.x - pinchDistance * 0.2, y: indexTip.y)
+        let wrist = Landmark(x: centroid.x, y: 0.1)
+        let middleMCP = Landmark(x: centroid.x, y: 0.3)
+        let thumbTip = Landmark(x: centroid.x - pinchDistance * 0.2, y: centroid.y)
+        let indexTip = centroid
         
         let joints: [JointName: Landmark] = [
             .wrist: wrist,
@@ -38,8 +40,8 @@ final class GestureStateMachineTests: XCTestCase {
             timestamp: timestamp,
             extendedFingerCount: extendedFingers,
             fingerStates: fingerStates,
-            centroid: indexTip,
-            spread: 0.5,
+            centroid: centroid,
+            spread: spread,
             pinchDistance: pinchDistance,
             handScale: 0.2
         )
@@ -50,12 +52,10 @@ final class GestureStateMachineTests: XCTestCase {
     func testCursorFreezeOnTwoFingers() {
         let sm = GestureStateMachine()
         
-        // 1 finger extended -> ONE_FINGER_CURSOR
         let (h1, m1) = makeHand(timestamp: 1.0, extendedFingers: 1, pinchDistance: 0.5)
         _ = sm.process(hand: h1, metrics: m1, timestamp: 1.0)
         XCTAssertEqual(sm.currentState, .oneFingerCursor)
         
-        // 2 fingers appear -> TWO_FINGER_PAUSED (cursor frozen)
         let (h2, m2) = makeHand(timestamp: 1.016, extendedFingers: 2, pinchDistance: 0.5)
         _ = sm.process(hand: h2, metrics: m2, timestamp: 1.016)
         XCTAssertEqual(sm.currentState, .twoFingerDetected)
@@ -65,21 +65,17 @@ final class GestureStateMachineTests: XCTestCase {
         let sm = GestureStateMachine()
         sm.updateCursorPosition(CGPoint(x: 500, y: 400))
         
-        // 1. Two fingers detected (open)
         let (h1, m1) = makeHand(timestamp: 1.0, extendedFingers: 2, pinchDistance: 0.4)
         _ = sm.process(hand: h1, metrics: m1, timestamp: 1.0)
         
-        // 2. Pinch starts (D < 0.22)
         let (h2, m2) = makeHand(timestamp: 1.05, extendedFingers: 2, pinchDistance: 0.15)
         let events2 = sm.process(hand: h2, metrics: m2, timestamp: 1.05)
         XCTAssertEqual(sm.currentState, .pinchCandidate)
         XCTAssertTrue(events2.isEmpty)
         
-        // 3. Pinch releases quickly at 1.15s (100ms later, D > 0.30)
         let (h3, m3) = makeHand(timestamp: 1.15, extendedFingers: 2, pinchDistance: 0.35)
         let events3 = sm.process(hand: h3, metrics: m3, timestamp: 1.15)
         
-        // Should produce exactly one leftClick event!
         XCTAssertEqual(events3.count, 1)
         if case .leftClick(let pos) = events3.first {
             XCTAssertEqual(pos.x, 500)
@@ -93,15 +89,12 @@ final class GestureStateMachineTests: XCTestCase {
         let sm = GestureStateMachine()
         sm.updateCursorPosition(CGPoint(x: 300, y: 300))
         
-        // 1. Two fingers detected
         let (h1, m1) = makeHand(timestamp: 1.0, extendedFingers: 2, pinchDistance: 0.4)
         _ = sm.process(hand: h1, metrics: m1, timestamp: 1.0)
         
-        // 2. Pinch starts at t = 1.05
         let (h2, m2) = makeHand(timestamp: 1.05, extendedFingers: 2, pinchDistance: 0.15)
         _ = sm.process(hand: h2, metrics: m2, timestamp: 1.05)
         
-        // 3. Pinch sustained beyond dragHoldDelay (0.35s) -> t = 1.45s
         let (h3, m3) = makeHand(timestamp: 1.45, extendedFingers: 2, pinchDistance: 0.15)
         let events3 = sm.process(hand: h3, metrics: m3, timestamp: 1.45)
         
@@ -113,7 +106,6 @@ final class GestureStateMachineTests: XCTestCase {
             XCTFail("Expected leftMouseDown event")
         }
         
-        // 4. Release pinch -> mouseUp
         let (h4, m4) = makeHand(timestamp: 1.80, extendedFingers: 2, pinchDistance: 0.40)
         let events4 = sm.process(hand: h4, metrics: m4, timestamp: 1.80)
         
@@ -128,7 +120,6 @@ final class GestureStateMachineTests: XCTestCase {
     func testSafetyInvariantMouseUpOnHandLoss() {
         let sm = GestureStateMachine()
         
-        // 1. Enter dragging
         let (h1, m1) = makeHand(timestamp: 1.0, extendedFingers: 2, pinchDistance: 0.4)
         _ = sm.process(hand: h1, metrics: m1, timestamp: 1.0)
         let (h2, m2) = makeHand(timestamp: 1.05, extendedFingers: 2, pinchDistance: 0.15)
@@ -137,15 +128,123 @@ final class GestureStateMachineTests: XCTestCase {
         _ = sm.process(hand: h3, metrics: m3, timestamp: 1.45)
         XCTAssertEqual(sm.currentState, .dragging)
         
-        // 2. Hand disappears completely!
         let eventsLoss = sm.process(hand: nil, metrics: nil, timestamp: 1.50)
-        
-        // SAFETY: leftMouseUp MUST be dispatched!
         XCTAssertEqual(eventsLoss.count, 1)
         if case .leftMouseUp = eventsLoss.first {
-            // Safety invariant verified
+            // Success
         } else {
             XCTFail("Critical safety failure: Mouse button stuck down on hand loss!")
+        }
+    }
+    
+    // MARK: - Phase 6 Tests: 4-Finger Fast Swipe
+    func testFourFingerFastSwipeRight() {
+        let sm = GestureStateMachine()
+        
+        // 4 fingers moving from x=0.30 to x=0.45 in 0.15s (dx = +0.15, velocity = 1.0 norm/s)
+        let (h1, m1) = makeHand(timestamp: 1.00, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.30, y: 0.50))
+        _ = sm.process(hand: h1, metrics: m1, timestamp: 1.00)
+        
+        let (h2, m2) = makeHand(timestamp: 1.08, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.38, y: 0.50))
+        _ = sm.process(hand: h2, metrics: m2, timestamp: 1.08)
+        
+        let (h3, m3) = makeHand(timestamp: 1.15, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.45, y: 0.50))
+        let events = sm.process(hand: h3, metrics: m3, timestamp: 1.15)
+        
+        XCTAssertEqual(events.count, 1)
+        if case .switchSpace(let dir) = events.first {
+            XCTAssertEqual(dir, .right)
+        } else {
+            XCTFail("Expected switchSpace(.right)")
+        }
+    }
+    
+    func testFourFingerFastSwipeLeft() {
+        let sm = GestureStateMachine()
+        
+        // 4 fingers moving from x=0.60 to x=0.45 in 0.15s (dx = -0.15, velocity = 1.0 norm/s)
+        let (h1, m1) = makeHand(timestamp: 1.00, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.60, y: 0.50))
+        _ = sm.process(hand: h1, metrics: m1, timestamp: 1.00)
+        
+        let (h2, m2) = makeHand(timestamp: 1.08, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.52, y: 0.50))
+        _ = sm.process(hand: h2, metrics: m2, timestamp: 1.08)
+        
+        let (h3, m3) = makeHand(timestamp: 1.15, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.45, y: 0.50))
+        let events = sm.process(hand: h3, metrics: m3, timestamp: 1.15)
+        
+        XCTAssertEqual(events.count, 1)
+        if case .switchSpace(let dir) = events.first {
+            XCTAssertEqual(dir, .left)
+        } else {
+            XCTFail("Expected switchSpace(.left)")
+        }
+    }
+    
+    func testFourFingerVerticalMovementRejected() {
+        let sm = GestureStateMachine()
+        
+        // 4 fingers moving predominantly vertically (dx = 0.05, dy = 0.20)
+        let (h1, m1) = makeHand(timestamp: 1.00, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.50, y: 0.30))
+        _ = sm.process(hand: h1, metrics: m1, timestamp: 1.00)
+        
+        let (h2, m2) = makeHand(timestamp: 1.10, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.52, y: 0.40))
+        _ = sm.process(hand: h2, metrics: m2, timestamp: 1.10)
+        
+        let (h3, m3) = makeHand(timestamp: 1.15, extendedFingers: 4, pinchDistance: 0.5, centroid: Landmark(x: 0.55, y: 0.50))
+        let events = sm.process(hand: h3, metrics: m3, timestamp: 1.15)
+        
+        // Should be rejected because movement is vertical, not horizontal
+        XCTAssertTrue(events.isEmpty)
+    }
+    
+    // MARK: - Phase 7 Tests: 5-Finger Mission Control Sequence
+    func testFiveFingerMissionControlSequence() {
+        let sm = GestureStateMachine()
+        
+        // 1. Five extended fingers (open palm, spread = 0.55)
+        let (h1, m1) = makeHand(timestamp: 1.00, extendedFingers: 5, pinchDistance: 0.5, spread: 0.55)
+        _ = sm.process(hand: h1, metrics: m1, timestamp: 1.00)
+        XCTAssertEqual(sm.currentState, .fiveFingerOpen)
+        
+        // 2. Converge / Contracting (spread drops to 0.35)
+        let (h2, m2) = makeHand(timestamp: 1.15, extendedFingers: 5, pinchDistance: 0.3, spread: 0.35)
+        _ = sm.process(hand: h2, metrics: m2, timestamp: 1.15)
+        XCTAssertEqual(sm.currentState, .fiveFingerContracting)
+        
+        // 3. Pinch Lock (spread <= 0.22) -> ARMED
+        let (h3, m3) = makeHand(timestamp: 1.25, extendedFingers: 5, pinchDistance: 0.15, spread: 0.18)
+        let events3 = sm.process(hand: h3, metrics: m3, timestamp: 1.25)
+        XCTAssertEqual(sm.currentState, .fiveFingerPinchLocked)
+        // CRITICAL: Mission control is NOT triggered on pinch!
+        XCTAssertTrue(events3.isEmpty)
+        
+        // 4. Expanding (spread increases to 0.35)
+        let (h4, m4) = makeHand(timestamp: 1.40, extendedFingers: 5, pinchDistance: 0.35, spread: 0.35)
+        _ = sm.process(hand: h4, metrics: m4, timestamp: 1.40)
+        XCTAssertEqual(sm.currentState, .fiveFingerExpanding)
+        
+        // 5. Open Palm Reached (spread >= 0.48) -> TRIGGER MISSION CONTROL!
+        let (h5, m5) = makeHand(timestamp: 1.55, extendedFingers: 5, pinchDistance: 0.5, spread: 0.52)
+        let events5 = sm.process(hand: h5, metrics: m5, timestamp: 1.55)
+        
+        XCTAssertEqual(events5.count, 1)
+        if case .triggerMissionControl = events5.first {
+            // Success
+        } else {
+            XCTFail("Expected triggerMissionControl event")
+        }
+        XCTAssertEqual(sm.currentState, .cooldown)
+    }
+    
+    func testFiveFingerStaticOpenPalmDoesNotTriggerMissionControl() {
+        let sm = GestureStateMachine()
+        
+        // User merely shows an open palm without the pinch->open sequence
+        for i in 0..<10 {
+            let t = 1.0 + Double(i) * 0.05
+            let (h, m) = makeHand(timestamp: t, extendedFingers: 5, pinchDistance: 0.5, spread: 0.55)
+            let events = sm.process(hand: h, metrics: m, timestamp: t)
+            XCTAssertTrue(events.isEmpty, "Static open palm should never trigger Mission Control")
         }
     }
 }
