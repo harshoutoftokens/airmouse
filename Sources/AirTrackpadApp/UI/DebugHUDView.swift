@@ -29,6 +29,32 @@ public struct DebugHUDView: View {
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
             
+            // Accessibility Warning Banner
+            if !appState.isAccessibilityGranted {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Accessibility Permission Required")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("macOS requires Accessibility permission to execute clicks, window drags, and Space swipes.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    Spacer()
+                    Button("Grant Permission") {
+                        PermissionsHelper.promptAccessibilityPermission()
+                        PermissionsHelper.openAccessibilitySettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.85))
+            }
+            
             // Viewport & Skeleton Overlay
             ZStack {
                 Color.black.opacity(0.85)

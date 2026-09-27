@@ -1,12 +1,10 @@
 import Foundation
 import CoreGraphics
 
-/// Engine translating raw index fingertip landmarks into smooth, accelerated cursor events.
+/// Engine translating raw index fingertip landmarks into smooth, jitter-free cursor events.
 public final class CursorEngine: @unchecked Sendable {
     public var mapper: ScreenMapper
     public var filter: OneEuroFilter
-    public var sensitivity: Double
-    public var accelerationFactor: Double
     public var deadZonePixels: Double
     
     private var lastScreenPoint: CGPoint?
@@ -14,15 +12,11 @@ public final class CursorEngine: @unchecked Sendable {
     
     public init(
         mapper: ScreenMapper = ScreenMapper(),
-        filter: OneEuroFilter = OneEuroFilter(minCutoff: 1.0, beta: 0.007),
-        sensitivity: Double = 1.0,
-        accelerationFactor: Double = 1.15,
-        deadZonePixels: Double = 1.2
+        filter: OneEuroFilter = OneEuroFilter(minCutoff: 0.6, beta: 0.008),
+        deadZonePixels: Double = 2.2
     ) {
         self.mapper = mapper
         self.filter = filter
-        self.sensitivity = sensitivity
-        self.accelerationFactor = accelerationFactor
         self.deadZonePixels = deadZonePixels
     }
     
@@ -49,24 +43,19 @@ public final class CursorEngine: @unchecked Sendable {
             return .cursorMoved(to: filteredPoint)
         }
         
-        // 3. Compute pixel displacement
+        // 3. Compute pixel displacement from last emitted position
         let dx = Double(filteredPoint.x - prev.x)
         let dy = Double(filteredPoint.y - prev.y)
         let displacement = hypot(dx, dy)
         
-        // 4. Dead-zone test — suppresses microscopic hand tremor
+        // 4. Dead-zone test — suppresses camera sensor noise and finger micro-tremors
         guard displacement >= deadZonePixels else {
             return nil
         }
         
-        // 5. Apply acceleration curve: scale displacement non-linearly
-        let accelMultiplier = sensitivity * pow(displacement, accelerationFactor - 1.0)
-        let finalX = prev.x + CGFloat(dx * accelMultiplier)
-        let finalY = prev.y + CGFloat(dy * accelMultiplier)
-        
-        // 6. Clamp to screen boundary
-        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, finalX))
-        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, finalY))
+        // 5. Clamp to screen boundary
+        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, filteredPoint.x))
+        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, filteredPoint.y))
         let targetPoint = CGPoint(x: clampedX, y: clampedY)
         
         self.lastScreenPoint = targetPoint

@@ -11,6 +11,7 @@ public final class AppState: ObservableObject {
     @Published public var metrics: HandMetrics?
     @Published public var activeGestureName: String = "IDLE"
     @Published public var isRunning: Bool = false
+    @Published public var isAccessibilityGranted: Bool = false
     @Published public var currentFrameImage: CGImage?
     
     public init() {}

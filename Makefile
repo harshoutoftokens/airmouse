@@ -18,6 +18,7 @@ bundle: build
 	 cp .build/debug/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad 2>/dev/null || \
 	 cp .build/out/Products/Debug/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad
 	@cp Info.plist AirTrackpad.app/Contents/Info.plist
+	@codesign -s - --force --deep AirTrackpad.app 2>/dev/null || true
 	@echo "AirTrackpad.app created successfully."
 
 run: bundle

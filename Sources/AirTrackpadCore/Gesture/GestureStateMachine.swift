@@ -24,12 +24,15 @@ private struct CentroidSample {
 public final class GestureStateMachine: @unchecked Sendable {
     public private(set) var currentState: GestureState = .idle
     
+    // Screen configuration
+    public var screenBounds: CGRect = CGRect(x: 0, y: 0, width: 1470, height: 956)
+    
     // 2-Finger Pinch / Drag parameters
     public var pinchStartThreshold: Double = 0.22
-    public var pinchReleaseThreshold: Double = 0.30
-    public var clickMaxDuration: TimeInterval = 0.35
+    public var pinchReleaseThreshold: Double = 0.32
+    public var clickMaxDuration: TimeInterval = 0.40
     public var dragHoldDelay: TimeInterval = 0.35
-    public var clickCooldownDuration: TimeInterval = 0.25
+    public var clickCooldownDuration: TimeInterval = 0.20
     
     // 4-Finger Fast Swipe parameters
     public var swipeMinDisplacement: Double = 0.10
@@ -49,8 +52,12 @@ public final class GestureStateMachine: @unchecked Sendable {
     private var pinchStartTime: TimeInterval?
     private var cooldownUntil: TimeInterval = 0.0
     private var isDraggingActive: Bool = false
-    private var currentCursorPosition: CGPoint = .zero
+    public private(set) var currentCursorPosition: CGPoint = .zero
     private var dragAnchorPosition: CGPoint?
+    
+    // Stability debounce counters (prevent single-frame flicker)
+    private var consecutiveTwoFingerFrames: Int = 0
+    private var consecutiveOneFingerFrames: Int = 0
     
     // Swipe kinematic buffer
     private var centroidHistory: [CentroidSample] = []
@@ -61,7 +68,11 @@ public final class GestureStateMachine: @unchecked Sendable {
     
     private let lock = NSLock()
     
-    public init() {}
+    public init() {
+        if let loc = CGEvent(source: nil)?.location {
+            self.currentCursorPosition = loc
+        }
+    }
     
     public func reset() {
         lock.lock()
@@ -70,6 +81,8 @@ public final class GestureStateMachine: @unchecked Sendable {
         pinchStartTime = nil
         isDraggingActive = false
         dragAnchorPosition = nil
+        consecutiveTwoFingerFrames = 0
+        consecutiveOneFingerFrames = 0
         centroidHistory.removeAll()
         fiveFingerSequenceStartTime = nil
         previousSpread = 0.0
@@ -100,6 +113,8 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             currentState = .idle
             pinchStartTime = nil
+            consecutiveOneFingerFrames = 0
+            consecutiveTwoFingerFrames = 0
             centroidHistory.removeAll()
             fiveFingerSequenceStartTime = nil
             return emittedEvents
@@ -114,7 +129,19 @@ public final class GestureStateMachine: @unchecked Sendable {
         let pinchDist = metrics.pinchDistance
         let spread = metrics.spread
         
-        // Record centroid history for swipe detection (window = 350ms)
+        // Update stability counters
+        if extCount >= 2 {
+            consecutiveTwoFingerFrames += 1
+            consecutiveOneFingerFrames = 0
+        } else if extCount == 1 {
+            consecutiveOneFingerFrames += 1
+            consecutiveTwoFingerFrames = 0
+        } else {
+            consecutiveOneFingerFrames = 0
+            consecutiveTwoFingerFrames = 0
+        }
+        
+        // Record centroid history for swipe detection
         centroidHistory.append(CentroidSample(point: metrics.centroid, timestamp: timestamp))
         centroidHistory.removeAll { timestamp - $0.timestamp > swipeMaxDuration }
         
@@ -139,34 +166,53 @@ public final class GestureStateMachine: @unchecked Sendable {
             return []
         }
         
-        // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG
-        if extCount >= 2 && currentState == .oneFingerCursor {
+        // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
+        let isIndexExtended = (metrics.state(for: .index) == .extended)
+        let isMiddleExtended = (metrics.state(for: .middle) == .extended)
+        let isRingExtended = (metrics.state(for: .ring) == .extended)
+        let isLittleExtended = (metrics.state(for: .little) == .extended)
+        
+        let isPinchTriggered = isIndexExtended && (pinchDist < pinchStartThreshold) && !isRingExtended && !isLittleExtended
+        let isPointingWithOneFinger = isIndexExtended && !isMiddleExtended && !isRingExtended && !isLittleExtended && (pinchDist >= pinchStartThreshold)
+        let isTwoFingersDetected = (isIndexExtended && isMiddleExtended && !isRingExtended && !isLittleExtended) || (extCount == 2 && pinchDist >= pinchStartThreshold)
+        
+        // Immediate pinch detection
+        if isPinchTriggered && (currentState == .oneFingerCursor || currentState == .twoFingerDetected || currentState == .idle) {
+            currentState = .pinchCandidate
+            pinchStartTime = timestamp
+        } else if isTwoFingersDetected && currentState == .oneFingerCursor {
             currentState = .twoFingerDetected
         }
         
         switch currentState {
         case .idle:
-            if extCount == 1 && metrics.state(for: .index) == .extended {
+            if isPinchTriggered {
+                currentState = .pinchCandidate
+                pinchStartTime = timestamp
+            } else if isPointingWithOneFinger {
                 currentState = .oneFingerCursor
-            } else if extCount == 2 {
+            } else if isTwoFingersDetected {
                 currentState = .twoFingerDetected
             }
             
         case .oneFingerCursor:
-            if extCount != 1 || metrics.state(for: .index) != .extended {
-                if extCount == 2 {
-                    currentState = .twoFingerDetected
-                } else {
-                    currentState = .idle
-                }
+            if isPinchTriggered {
+                currentState = .pinchCandidate
+                pinchStartTime = timestamp
+            } else if isTwoFingersDetected {
+                currentState = .twoFingerDetected
+            } else if extCount == 0 && !isIndexExtended {
+                currentState = .idle
             }
             
         case .twoFingerDetected:
-            if extCount < 2 {
-                currentState = .idle
-            } else if pinchDist < pinchStartThreshold {
+            if isPinchTriggered {
                 currentState = .pinchCandidate
                 pinchStartTime = timestamp
+            } else if isPointingWithOneFinger {
+                currentState = .oneFingerCursor
+            } else if extCount == 0 && !isIndexExtended {
+                currentState = .idle
             }
             
         case .pinchCandidate:
@@ -176,6 +222,7 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             let duration = timestamp - startTime
             
+            // Check if released quickly -> Click!
             if pinchDist > pinchReleaseThreshold {
                 if duration <= clickMaxDuration {
                     emittedEvents.append(.leftClick(at: currentCursorPosition))
@@ -186,6 +233,7 @@ public final class GestureStateMachine: @unchecked Sendable {
                 }
                 pinchStartTime = nil
             } else if duration >= dragHoldDelay && !isDraggingActive {
+                // Sustained pinch -> Dragging Mode!
                 isDraggingActive = true
                 currentState = .dragging
                 emittedEvents.append(.leftMouseDown(at: currentCursorPosition))
@@ -195,22 +243,26 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             
         case .dragging:
-            if pinchDist > pinchReleaseThreshold || extCount < 1 {
+            // When user releases pinch -> Mouse Up!
+            if pinchDist > pinchReleaseThreshold {
                 isDraggingActive = false
                 currentState = .cooldown
                 cooldownUntil = timestamp + 0.15
                 emittedEvents.append(.leftMouseUp(at: currentCursorPosition))
                 dragAnchorPosition = nil
             } else {
+                // Drag displacement: accumulate hand movement onto currentCursorPosition
                 if let indexTip = hand.landmark(.indexTip) {
                     if let anchor = dragAnchorPosition {
-                        let dx = (indexTip.x - anchor.x) * 1500.0
-                        let dy = (anchor.y - indexTip.y) * 1000.0
-                        let newPos = CGPoint(
-                            x: currentCursorPosition.x + dx,
-                            y: currentCursorPosition.y + dy
-                        )
-                        emittedEvents.append(.leftMouseDragged(to: newPos))
+                        // Delta in normalized space mapped to screen space
+                        let dx = (indexTip.x - anchor.x) * screenBounds.width * 1.5
+                        let dy = (anchor.y - indexTip.y) * screenBounds.height * 1.5 // inverted Y
+                        
+                        let newX = max(screenBounds.minX, min(screenBounds.maxX, currentCursorPosition.x + dx))
+                        let newY = max(screenBounds.minY, min(screenBounds.maxY, currentCursorPosition.y + dy))
+                        
+                        currentCursorPosition = CGPoint(x: newX, y: newY)
+                        emittedEvents.append(.leftMouseDragged(to: currentCursorPosition))
                     }
                     dragAnchorPosition = indexTip.point
                 }
@@ -243,9 +295,6 @@ public final class GestureStateMachine: @unchecked Sendable {
         let absDy = abs(dy)
         let velocity = absDx / dt
         
-        // 1. Horizontal displacement floor
-        // 2. Velocity floor
-        // 3. Horizontal dominance: absDx >= 2.0 * absDy
         if absDx >= swipeMinDisplacement && velocity >= swipeMinVelocity && absDx >= (absDy * swipeDirectionRatio) {
             let direction: SwipeDirection = (dx > 0) ? .right : .left
             centroidHistory.removeAll()
@@ -275,17 +324,14 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             
         case .fiveFingerContracting:
-            // Fingertips converge to pinch lock
             if spread <= fiveFingerPinchThreshold {
                 currentState = .fiveFingerPinchLocked
-                // NOTE: Mission Control is NOT triggered here! It merely arms the sequence.
             } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
                 currentState = .idle
                 fiveFingerSequenceStartTime = nil
             }
             
         case .fiveFingerPinchLocked:
-            // Expanding outward
             if spread > fiveFingerPinchThreshold + 0.08 {
                 currentState = .fiveFingerExpanding
             } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
@@ -294,7 +340,6 @@ public final class GestureStateMachine: @unchecked Sendable {
             }
             
         case .fiveFingerExpanding:
-            // Open palm reaches trigger threshold
             if spread >= fiveFingerOpenThreshold {
                 guard let start = fiveFingerSequenceStartTime else {
                     currentState = .idle
@@ -331,6 +376,8 @@ public final class GestureStateMachine: @unchecked Sendable {
         }
         currentState = .idle
         pinchStartTime = nil
+        consecutiveOneFingerFrames = 0
+        consecutiveTwoFingerFrames = 0
         centroidHistory.removeAll()
         fiveFingerSequenceStartTime = nil
         return events

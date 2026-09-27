@@ -136,11 +136,19 @@ public enum FingerClassifier {
         let centroid = Geometry.centroid(of: extendedTips)
         let spread = Geometry.spread(of: extendedTips, palmScale: scale)
         
-        // Pinch distance between index tip and thumb tip (or middle tip)
+        // Pinch distance: evaluate both Index-to-Thumb and Index-to-Middle fingertips
         var pinchDist = 1.0
-        if let indexTip = hand.landmark(.indexTip),
-           let thumbTip = hand.landmark(.thumbTip) {
-            pinchDist = Geometry.normalizedDistance(indexTip, thumbTip, palmScale: scale)
+        if let indexTip = hand.landmark(.indexTip) {
+            var distances: [Double] = []
+            if let thumbTip = hand.landmark(.thumbTip), thumbTip.confidence > 0.3 {
+                distances.append(Geometry.normalizedDistance(indexTip, thumbTip, palmScale: scale))
+            }
+            if let middleTip = hand.landmark(.middleTip), middleTip.confidence > 0.3 {
+                distances.append(Geometry.normalizedDistance(indexTip, middleTip, palmScale: scale))
+            }
+            if let minD = distances.min() {
+                pinchDist = minD
+            }
         }
         
         return HandMetrics(

@@ -5,7 +5,7 @@ import AirTrackpadCore
 
 public final class TrackingPipelineCoordinator: @unchecked Sendable {
     private let cameraManager = CameraManager()
-    private let handTracker = VisionHandTracker(maximumHandCount: 1, mirrorsHorizontal: true)
+    private let handTracker = VisionHandTracker(maximumHandCount: 2, mirrorsHorizontal: true)
     private let cursorEngine = CursorEngine()
     private let stateMachine = GestureStateMachine()
     private let actionRouter: ActionRouter
@@ -14,6 +14,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
     // FPS calculation
     private var lastFrameTime: TimeInterval = 0.0
     private var frameCount: Int = 0
+    private var lastTrackedWrist: Landmark?
     
     public init(appState: AppState, backend: InputBackendProtocol = CGEventInputBackend()) {
         self.appState = appState
@@ -27,9 +28,14 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         }
     }
     
+    @MainActor
     public func start() {
+        cursorEngine.mapper.updateScreenBounds()
+        stateMachine.screenBounds = cursorEngine.mapper.screenBounds
+        let isTrusted = PermissionsHelper.isAccessibilityAuthorized
         Task { @MainActor in
             appState.isRunning = true
+            appState.isAccessibilityGranted = isTrusted
         }
         cameraManager.start()
     }
@@ -39,6 +45,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         actionRouter.emergencyStop()
         stateMachine.reset()
         cursorEngine.reset()
+        lastTrackedWrist = nil
         Task { @MainActor in
             appState.isRunning = false
             appState.observations = []
@@ -58,7 +65,29 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             let latencyNanos = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
             let latencyMs = Double(latencyNanos) / 1_000_000.0
             
-            let hand = observations.first
+            // Select continuous primary hand if multiple detected
+            let hand: HandObservation?
+            if observations.isEmpty {
+                hand = nil
+                lastTrackedWrist = nil
+            } else if observations.count == 1 {
+                hand = observations.first
+                lastTrackedWrist = hand?.landmark(.wrist)
+            } else {
+                // Find hand closest to previous wrist position
+                if let prevWrist = lastTrackedWrist {
+                    let sorted = observations.sorted { obs1, obs2 in
+                        let d1 = obs1.landmark(.wrist).map { Geometry.distance($0, prevWrist) } ?? 999.0
+                        let d2 = obs2.landmark(.wrist).map { Geometry.distance($0, prevWrist) } ?? 999.0
+                        return d1 < d2
+                    }
+                    hand = sorted.first
+                } else {
+                    hand = observations.max(by: { $0.confidence < $1.confidence })
+                }
+                lastTrackedWrist = hand?.landmark(.wrist)
+            }
+            
             let metrics = hand.map { FingerClassifier.extractMetrics(from: $0) }
             
             // 1. Process Temporal State Machine
@@ -79,7 +108,8 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                         stateMachine.updateCursorPosition(pt)
                     }
                 }
-            } else {
+            } else if hand == nil {
+                // Only reset the OneEuroFilter when hand is completely lost from the camera
                 cursorEngine.reset()
             }
             
@@ -108,6 +138,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         if dt >= 0.5 {
             let currentFPS = Double(frameCount) / dt
             appState.fps = currentFPS
+            appState.isAccessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
             frameCount = 0
             lastFrameTime = timestamp
         }
