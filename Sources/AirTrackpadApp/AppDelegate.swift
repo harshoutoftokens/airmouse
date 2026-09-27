@@ -1,21 +1,56 @@
 import Cocoa
 import SwiftUI
+import AirTrackpadCore
 
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var hudWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     
     private let appState = AppState()
     private var coordinator: TrackingPipelineCoordinator?
+    private var globalKeyMonitor: Any?
     
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory) // Runs primarily in Menu Bar
+        NSApp.setActivationPolicy(.accessory) // Runs primarily as Menu Bar app
         
         coordinator = TrackingPipelineCoordinator(appState: appState)
         setupStatusMenu()
+        setupEmergencyStop()
+        
+        // Check permissions on start
+        Task {
+            if !PermissionsHelper.isCameraAuthorized {
+                _ = await PermissionsHelper.requestCameraAccess()
+            }
+            if !PermissionsHelper.isAccessibilityAuthorized {
+                PermissionsHelper.promptAccessibilityPermission()
+            }
+        }
+        
         showDebugHUD()
         coordinator?.start()
+    }
+    
+    private func setupEmergencyStop() {
+        // Global monitor for ESC key (keyCode 53) to immediately halt tracking and release mouse
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 {
+                Task { @MainActor in
+                    self?.emergencyStopTriggered()
+                }
+            }
+        }
+    }
+    
+    private func emergencyStopTriggered() {
+        coordinator?.stop()
+        let alert = NSAlert()
+        alert.messageText = "AirTrackpad: Emergency Stop Activated"
+        alert.informativeText = "Input tracking has been halted and all synthetic buttons have been released."
+        alert.alertStyle = .warning
+        alert.runModal()
     }
     
     private func setupStatusMenu() {
@@ -26,9 +61,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Open Debug HUD", action: #selector(showDebugHUD), keyEquivalent: "d"))
+        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Start Tracking", action: #selector(startTracking), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: "Stop Tracking", action: #selector(stopTracking), keyEquivalent: "p"))
+        menu.addItem(NSMenuItem(title: "Pause Tracking", action: #selector(stopTracking), keyEquivalent: "p"))
+        menu.addItem(NSMenuItem(title: "Emergency Stop (ESC)", action: #selector(triggerEmergencyStop), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit AirTrackpad", action: #selector(quitApp), keyEquivalent: "q"))
         
@@ -44,13 +81,31 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "AirTrackpad — Debug HUD"
+            window.title = "AirTrackpad — Live Debug HUD"
             window.contentView = NSHostingView(rootView: contentView)
             window.isReleasedWhenClosed = false
-            window.level = .floating // Stays on top for easy debugging
+            window.level = .floating
             hudWindow = window
         }
         hudWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc public func showSettings() {
+        if settingsWindow == nil {
+            let contentView = SettingsView()
+            let window = NSWindow(
+                contentRect: NSRect(x: 150, y: 150, width: 580, height: 420),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "AirTrackpad — Preferences"
+            window.contentView = NSHostingView(rootView: contentView)
+            window.isReleasedWhenClosed = false
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
     
@@ -62,12 +117,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator?.stop()
     }
     
+    @objc private func triggerEmergencyStop() {
+        emergencyStopTriggered()
+    }
+    
     @objc private func quitApp() {
         coordinator?.stop()
         NSApp.terminate(nil)
     }
     
     public func applicationWillTerminate(_ notification: Notification) {
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         coordinator?.stop()
     }
 }

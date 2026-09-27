@@ -1,0 +1,175 @@
+{
+  "frames" : [
+    {
+      "gestureState" : "TWO_FINGER",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 2,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "folded",
+          "middle" : "extended",
+          "ring" : "folded",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.4,
+        "spread" : 0.5,
+        "timestamp" : 1
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "DC56877F-DFD5-4BF1-8768-F2437431CC26",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.42,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1
+      },
+      "timestamp" : 1
+    },
+    {
+      "gestureState" : "PINCH",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 2,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "folded",
+          "middle" : "extended",
+          "ring" : "folded",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.15,
+        "spread" : 0.5,
+        "timestamp" : 1.05
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "03C27FD4-4B6F-4945-B2F5-73F8BEDCAE2D",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.47,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.05
+      },
+      "timestamp" : 1.05
+    },
+    {
+      "gestureState" : "RELEASE",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 2,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "folded",
+          "middle" : "extended",
+          "ring" : "folded",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.35,
+        "spread" : 0.5,
+        "timestamp" : 1.15
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "D0F0B2B6-D45A-4E04-B428-3C258EDEA033",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.43,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.15
+      },
+      "timestamp" : 1.15
+    }
+  ],
+  "name" : "two_finger_click_001",
+  "recordedAt" : 812195367.045838,
+  "targetFPS" : 60
+}

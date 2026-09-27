@@ -1,0 +1,287 @@
+{
+  "frames" : [
+    {
+      "gestureState" : "4F_SWIPE_RIGHT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.3,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.5,
+        "timestamp" : 1
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "80B2F5A8-20D1-447B-BC68-DB062AA0B996",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.3,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.3,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.19999999999999998,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.3,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1
+      },
+      "timestamp" : 1
+    },
+    {
+      "gestureState" : "4F_SWIPE_RIGHT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.33999999999999997,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.5,
+        "timestamp" : 1.03
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "0CC92849-FB60-4B42-8F46-BCDC9B1863F9",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.33999999999999997,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.33999999999999997,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.23999999999999996,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.33999999999999997,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.03
+      },
+      "timestamp" : 1.03
+    },
+    {
+      "gestureState" : "4F_SWIPE_RIGHT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.38,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.5,
+        "timestamp" : 1.06
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "D8E8FF39-A6BF-449F-9C2D-F533B8AFFEC5",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.38,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.38,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.28,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.38,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.06
+      },
+      "timestamp" : 1.06
+    },
+    {
+      "gestureState" : "4F_SWIPE_RIGHT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.42,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.5,
+        "timestamp" : 1.09
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "DC2BCC19-FDC8-4572-8EAC-5E14F320EE62",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.42,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.42,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.31999999999999995,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.42,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.09
+      },
+      "timestamp" : 1.09
+    },
+    {
+      "gestureState" : "4F_SWIPE_RIGHT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.45999999999999996,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.5,
+        "timestamp" : 1.12
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "16C86C81-7C4D-4D22-99E9-C6FE4DE09138",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.45999999999999996,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.45999999999999996,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.36,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.45999999999999996,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.12
+      },
+      "timestamp" : 1.12
+    }
+  ],
+  "name" : "four_finger_swipe_right_001",
+  "recordedAt" : 812195367.047047,
+  "targetFPS" : 60
+}

@@ -1,0 +1,287 @@
+{
+  "frames" : [
+    {
+      "gestureState" : "OPEN",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 5,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "extended"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.55,
+        "timestamp" : 1
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "EB06AF6B-4C52-489A-A0B1-66B8BAA772F1",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.4,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1
+      },
+      "timestamp" : 1
+    },
+    {
+      "gestureState" : "CONTRACT",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 5,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "extended"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.3,
+        "spread" : 0.35,
+        "timestamp" : 1.15
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "4C1F9561-50AE-4B8B-AA52-FADBB2AB4477",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.44,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.15
+      },
+      "timestamp" : 1.15
+    },
+    {
+      "gestureState" : "LOCKED",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 5,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "extended"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.15,
+        "spread" : 0.18,
+        "timestamp" : 1.25
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "DEB44F4A-A782-4EEC-B92F-558BE3F219C1",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.47,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.25
+      },
+      "timestamp" : 1.25
+    },
+    {
+      "gestureState" : "EXPAND",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 5,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "extended"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.35,
+        "spread" : 0.35,
+        "timestamp" : 1.4
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "90BA72E6-3A3D-4B2A-BC3A-051A1EA9AA62",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.43,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.4
+      },
+      "timestamp" : 1.4
+    },
+    {
+      "gestureState" : "TRIGGER",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5,
+          "z" : 0
+        },
+        "extendedFingerCount" : 5,
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "extended"
+        },
+        "handScale" : 0.2,
+        "pinchDistance" : 0.5,
+        "spread" : 0.52,
+        "timestamp" : 1.55
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "4329E821-AF87-4EAA-83A5-63B766CE0BCE",
+        "joints" : {
+          "indexTip" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.3,
+            "z" : 0
+          },
+          "thumbTip" : {
+            "confidence" : 1,
+            "x" : 0.4,
+            "y" : 0.5,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.1,
+            "z" : 0
+          }
+        },
+        "timestamp" : 1.55
+      },
+      "timestamp" : 1.55
+    }
+  ],
+  "name" : "five_finger_mission_control_001",
+  "recordedAt" : 812195367.047824,
+  "targetFPS" : 60
+}
