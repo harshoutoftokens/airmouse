@@ -95,8 +95,8 @@ final class GestureStateMachineTests: XCTestCase {
         let (h2, m2) = makeHand(timestamp: 1.05, extendedFingers: 2, pinchDistance: 0.15)
         _ = sm.process(hand: h2, metrics: m2, timestamp: 1.05)
         
-        let (h3, m3) = makeHand(timestamp: 1.45, extendedFingers: 2, pinchDistance: 0.15)
-        let events3 = sm.process(hand: h3, metrics: m3, timestamp: 1.45)
+        let (h3, m3) = makeHand(timestamp: 2.00, extendedFingers: 2, pinchDistance: 0.15)
+        let events3 = sm.process(hand: h3, metrics: m3, timestamp: 2.00)
         
         XCTAssertEqual(sm.currentState, .dragging)
         XCTAssertEqual(events3.count, 1)
@@ -106,8 +106,8 @@ final class GestureStateMachineTests: XCTestCase {
             XCTFail("Expected leftMouseDown event")
         }
         
-        let (h4, m4) = makeHand(timestamp: 1.80, extendedFingers: 2, pinchDistance: 0.40)
-        let events4 = sm.process(hand: h4, metrics: m4, timestamp: 1.80)
+        let (h4, m4) = makeHand(timestamp: 2.30, extendedFingers: 2, pinchDistance: 0.40)
+        let events4 = sm.process(hand: h4, metrics: m4, timestamp: 2.30)
         
         XCTAssertEqual(events4.count, 1)
         if case .leftMouseUp = events4.first {
@@ -124,11 +124,11 @@ final class GestureStateMachineTests: XCTestCase {
         _ = sm.process(hand: h1, metrics: m1, timestamp: 1.0)
         let (h2, m2) = makeHand(timestamp: 1.05, extendedFingers: 2, pinchDistance: 0.15)
         _ = sm.process(hand: h2, metrics: m2, timestamp: 1.05)
-        let (h3, m3) = makeHand(timestamp: 1.45, extendedFingers: 2, pinchDistance: 0.15)
-        _ = sm.process(hand: h3, metrics: m3, timestamp: 1.45)
+        let (h3, m3) = makeHand(timestamp: 2.00, extendedFingers: 2, pinchDistance: 0.15)
+        _ = sm.process(hand: h3, metrics: m3, timestamp: 2.00)
         XCTAssertEqual(sm.currentState, .dragging)
         
-        let eventsLoss = sm.process(hand: nil, metrics: nil, timestamp: 1.50)
+        let eventsLoss = sm.process(hand: nil, metrics: nil, timestamp: 2.05)
         XCTAssertEqual(eventsLoss.count, 1)
         if case .leftMouseUp = eventsLoss.first {
             // Success

@@ -162,10 +162,10 @@ final class GestureReplayTests: XCTestCase {
         dragFrames.append(RecordedFrame(timestamp: 1.0, observation: d1, metrics: dm1, gestureState: "TWO_FINGER"))
         let (d2, dm2) = createSyntheticHand(timestamp: 1.05, extendedFingers: 2, pinchDist: 0.15)
         dragFrames.append(RecordedFrame(timestamp: 1.05, observation: d2, metrics: dm2, gestureState: "PINCH"))
-        let (d3, dm3) = createSyntheticHand(timestamp: 1.45, extendedFingers: 2, pinchDist: 0.15)
-        dragFrames.append(RecordedFrame(timestamp: 1.45, observation: d3, metrics: dm3, gestureState: "DRAGGING"))
-        let (d4, dm4) = createSyntheticHand(timestamp: 1.80, extendedFingers: 2, pinchDist: 0.38)
-        dragFrames.append(RecordedFrame(timestamp: 1.80, observation: d4, metrics: dm4, gestureState: "RELEASE"))
+        let (d3, dm3) = createSyntheticHand(timestamp: 2.00, extendedFingers: 2, pinchDist: 0.15)
+        dragFrames.append(RecordedFrame(timestamp: 2.00, observation: d3, metrics: dm3, gestureState: "DRAGGING"))
+        let (d4, dm4) = createSyntheticHand(timestamp: 2.30, extendedFingers: 2, pinchDist: 0.38)
+        dragFrames.append(RecordedFrame(timestamp: 2.30, observation: d4, metrics: dm4, gestureState: "RELEASE"))
         try GestureRecorder.save(recording: GestureRecording(name: "two_finger_drag_001", frames: dragFrames), to: recordingsDir.appendingPathComponent("two_finger_drag_001.json"))
         
         // 3. Four Finger Swipe Right

@@ -28,10 +28,10 @@ public final class GestureStateMachine: @unchecked Sendable {
     public var screenBounds: CGRect = CGRect(x: 0, y: 0, width: 1470, height: 956)
     
     // 2-Finger Pinch / Drag parameters
-    public var pinchStartThreshold: Double = 0.22
+    public var pinchStartThreshold: Double = 0.24
     public var pinchReleaseThreshold: Double = 0.32
     public var clickMaxDuration: TimeInterval = 0.40
-    public var dragHoldDelay: TimeInterval = 0.35
+    public var dragHoldDelay: TimeInterval = 0.85 // ~1.0 second hold to activate drag
     public var clickCooldownDuration: TimeInterval = 0.20
     
     // 4-Finger Fast Swipe parameters

@@ -25,7 +25,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "9EC43CE6-0CFE-4B0E-8FEB-B43407DC7C43",
+        "id" : "FBBE979D-5AC9-4A66-BEE7-483F4B3FA4C7",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -81,7 +81,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "2CEFC265-B327-489D-971D-CDB2DDB1352F",
+        "id" : "B9A69122-B9E2-4564-9FD9-D74374C5CCD9",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -132,12 +132,12 @@
         "handScale" : 0.2,
         "pinchDistance" : 0.15,
         "spread" : 0.5,
-        "timestamp" : 1.45
+        "timestamp" : 2
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "093F335C-AC01-4443-87FF-A28E45E50D3E",
+        "id" : "BC88251E-1E5B-40C8-8C4A-3B13FF364586",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -164,9 +164,9 @@
             "z" : 0
           }
         },
-        "timestamp" : 1.45
+        "timestamp" : 2
       },
-      "timestamp" : 1.45
+      "timestamp" : 2
     },
     {
       "gestureState" : "RELEASE",
@@ -188,12 +188,12 @@
         "handScale" : 0.2,
         "pinchDistance" : 0.38,
         "spread" : 0.5,
-        "timestamp" : 1.8
+        "timestamp" : 2.3
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "BE5055EB-68B5-45FC-9302-7483D7760C35",
+        "id" : "A8849799-B686-4289-898B-8F92D37F55D3",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -220,12 +220,12 @@
             "z" : 0
           }
         },
-        "timestamp" : 1.8
+        "timestamp" : 2.3
       },
-      "timestamp" : 1.8
+      "timestamp" : 2.3
     }
   ],
   "name" : "two_finger_drag_001",
-  "recordedAt" : 812197842.392417,
+  "recordedAt" : 812212792.82044,
   "targetFPS" : 60
 }

@@ -75,9 +75,9 @@ public enum FingerClassifier {
         let alignment = vProx.cosine(with: vDist)
         
         // An extended finger has Tip significantly further from wrist than PIP, and near-linear alignment
-        if distTipWrist > distPipWrist * 1.25 && distTipMcp > distPipMcp * 1.5 && alignment > 0.40 {
+        if distTipWrist > distPipWrist * 1.15 && distTipMcp > distPipMcp * 1.25 && alignment > 0.25 {
             return .extended
-        } else if distTipWrist < distPipWrist * 1.10 || alignment < 0.0 {
+        } else if distTipWrist < distPipWrist * 1.05 || alignment < -0.10 {
             return .folded
         } else {
             return .partiallyExtended
