@@ -7,6 +7,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
     private let cameraManager = CameraManager()
     private let handTracker = VisionHandTracker(maximumHandCount: 1, mirrorsHorizontal: true)
     private let cursorEngine = CursorEngine()
+    private let stateMachine = GestureStateMachine()
     private let actionRouter: ActionRouter
     private let appState: AppState
     
@@ -35,11 +36,15 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
     
     public func stop() {
         cameraManager.stop()
+        actionRouter.emergencyStop()
+        stateMachine.reset()
+        cursorEngine.reset()
         Task { @MainActor in
             appState.isRunning = false
             appState.observations = []
             appState.metrics = nil
             appState.fps = 0.0
+            appState.activeGestureName = "STOPPED"
         }
     }
     
@@ -53,41 +58,39 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             let latencyNanos = endTime.uptimeNanoseconds - startTime.uptimeNanoseconds
             let latencyMs = Double(latencyNanos) / 1_000_000.0
             
-            var gestureName = "IDLE"
+            let hand = observations.first
+            let metrics = hand.map { FingerClassifier.extractMetrics(from: $0) }
             
-            if let hand = observations.first {
-                let metrics = FingerClassifier.extractMetrics(from: hand)
+            // 1. Process Temporal State Machine
+            let smEvents = stateMachine.process(hand: hand, metrics: metrics, timestamp: timestamp)
+            for event in smEvents {
+                actionRouter.handle(event: event)
+            }
+            
+            // 2. Cursor Navigation: ONLY active in oneFingerCursor mode
+            if stateMachine.currentState == .oneFingerCursor,
+               let h = hand,
+               let indexTip = h.landmark(.indexTip),
+               indexTip.confidence > 0.4 {
                 
-                // GESTURE 1: One-Finger Cursor Mode
-                if metrics.extendedFingerCount == 1,
-                   metrics.state(for: .index) == .extended,
-                   let indexTip = hand.landmark(.indexTip),
-                   indexTip.confidence > 0.4 {
-                    
-                    gestureName = "☝ ONE_FINGER_CURSOR"
-                    if let cursorEvent = cursorEngine.process(indexTip: indexTip, timestamp: timestamp) {
-                        actionRouter.handle(event: cursorEvent)
+                if let cursorEvent = cursorEngine.process(indexTip: indexTip, timestamp: timestamp) {
+                    actionRouter.handle(event: cursorEvent)
+                    if case .cursorMoved(let pt) = cursorEvent {
+                        stateMachine.updateCursorPosition(pt)
                     }
-                } else {
-                    cursorEngine.reset()
-                }
-                
-                Task { @MainActor in
-                    self.updateFPS(timestamp: timestamp)
-                    self.appState.latencyMs = latencyMs
-                    self.appState.observations = observations
-                    self.appState.metrics = metrics
-                    self.appState.activeGestureName = gestureName
                 }
             } else {
                 cursorEngine.reset()
-                Task { @MainActor in
-                    self.updateFPS(timestamp: timestamp)
-                    self.appState.latencyMs = latencyMs
-                    self.appState.observations = []
-                    self.appState.metrics = nil
-                    self.appState.activeGestureName = "NO_HAND"
-                }
+            }
+            
+            let currentGestureName = stateMachine.currentState.rawValue
+            
+            Task { @MainActor in
+                self.updateFPS(timestamp: timestamp)
+                self.appState.latencyMs = latencyMs
+                self.appState.observations = observations
+                self.appState.metrics = metrics
+                self.appState.activeGestureName = currentGestureName
             }
         } catch {
             // Silently continue to next frame on transient Vision error
