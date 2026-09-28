@@ -125,19 +125,70 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
         CGWarpMouseCursorPosition(targetPoint)
     }
     
+    // MARK: - Native Space Switching (Dock Swipe Gestures)
+    
+    private static func cgField(_ n: UInt32) -> CGEventField {
+        unsafeBitCast(n, to: CGEventField.self)
+    }
+    
+    private static let fieldCGSEventType = cgField(55)
+    private static let fieldGestureHIDType = cgField(110)
+    private static let fieldSwipeMotion = cgField(123)
+    private static let fieldSwipeProgress = cgField(124)
+    private static let fieldSwipeVelocityX = cgField(129)
+    private static let fieldSwipeVelocityY = cgField(130)
+    private static let fieldGesturePhase = cgField(132)
+    
+    private static let kCGSEventDockControl: Int64 = 30
+    private static let kIOHIDEventTypeDockSwipe: Int64 = 23
+    private static let kCGGestureMotionHorizontal: Int64 = 1
+    
+    private enum DockGesturePhase: Int64 {
+        case began = 1
+        case changed = 2
+        case ended = 4
+        case cancelled = 8
+    }
+    
     public func switchSpace(direction: SwipeDirection) {
-        // Virtual key codes: Left Arrow = 0x7B, Right Arrow = 0x7C
-        let keyCode: UInt16 = (direction == .right) ? 0x7C : 0x7B
-        postKeyCombination(keyCode: keyCode, modifiers: .maskControl)
+        DispatchQueue.global(qos: .userInteractive).async {
+            // macOS Dock swipe sign: -1.0 moves to space on the right, +1.0 moves to space on the left
+            let sign: Double = (direction == .right) ? -1.0 : 1.0
+            let steps = 8
+            let rampMs: Double = 60.0
+            let peakProgress: Double = 0.35
+            let endVelocity: Double = 130.0
+            let perStepUs = UInt32((rampMs / Double(steps)) * 1000.0)
+            
+            Self.postDockPhase(.began, progress: 0.0, velocity: 0.0)
+            for step in 1...steps {
+                let frac = Double(step) / Double(steps)
+                Self.postDockPhase(.changed,
+                                   progress: sign * peakProgress * frac,
+                                   velocity: sign * endVelocity * frac)
+                usleep(perStepUs)
+            }
+            Self.postDockPhase(.ended,
+                               progress: sign * peakProgress,
+                               velocity: sign * endVelocity)
+        }
+    }
+    
+    private static func postDockPhase(_ phase: DockGesturePhase, progress: Double, velocity: Double) {
+        guard let ev = CGEvent(source: nil) else { return }
+        ev.setIntegerValueField(fieldCGSEventType, value: kCGSEventDockControl)
+        ev.setIntegerValueField(fieldGestureHIDType, value: kIOHIDEventTypeDockSwipe)
+        ev.setIntegerValueField(fieldGesturePhase, value: phase.rawValue)
+        ev.setDoubleValueField(fieldSwipeProgress, value: progress)
+        ev.setIntegerValueField(fieldSwipeMotion, value: kCGGestureMotionHorizontal)
+        ev.setDoubleValueField(fieldSwipeVelocityX, value: velocity)
+        ev.setDoubleValueField(fieldSwipeVelocityY, value: velocity)
+        ev.post(tap: .cgSessionEventTap)
     }
     
     public func triggerMissionControl() {
-        // Direct launch of native macOS Mission Control app
         let url = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
-        
-        // Fallback: Virtual key code Up Arrow = 0x7E with Control modifier
-        postKeyCombination(keyCode: 0x7E, modifiers: .maskControl)
     }
     
     public func emergencyRelease() {
@@ -158,36 +209,5 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
                 up.post(tap: .cgSessionEventTap)
             }
         }
-    }
-    
-    private func postKeyCombination(keyCode: UInt16, modifiers: CGEventFlags) {
-        let src = CGEventSource(stateID: .combinedSessionState)
-        let ctrlKey: UInt16 = 0x3B // Control key
-        
-        // 1. Modifier Key Down
-        let ctrlDown = CGEvent(keyboardEventSource: src, virtualKey: ctrlKey, keyDown: true)
-        ctrlDown?.flags = modifiers
-        ctrlDown?.post(tap: .cghidEventTap)
-        
-        usleep(20_000)
-        
-        // 2. Action Key Down
-        let keyDown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true)
-        keyDown?.flags = modifiers
-        keyDown?.post(tap: .cghidEventTap)
-        
-        usleep(45_000)
-        
-        // 3. Action Key Up
-        let keyUp = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false)
-        keyUp?.flags = modifiers
-        keyUp?.post(tap: .cghidEventTap)
-        
-        usleep(20_000)
-        
-        // 4. Modifier Key Up
-        let ctrlUp = CGEvent(keyboardEventSource: src, virtualKey: ctrlKey, keyDown: false)
-        ctrlUp?.flags = []
-        ctrlUp?.post(tap: .cghidEventTap)
     }
 }

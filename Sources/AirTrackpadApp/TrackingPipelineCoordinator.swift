@@ -28,8 +28,28 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         }
     }
     
+    public func applySettings(_ settings: AppSettings) {
+        stateMachine.swipeMinDisplacement = settings.swipeMinDisplacement
+        stateMachine.swipeMinVelocity = settings.swipeMinVelocity
+        stateMachine.swipeMaxDuration = settings.swipeMaxDuration
+        stateMachine.swipeCooldownDuration = settings.swipeCooldown
+        stateMachine.fiveFingerPinchThreshold = settings.fiveFingerPinchThreshold
+        stateMachine.fiveFingerOpenThreshold = settings.fiveFingerOpenThreshold
+        stateMachine.fiveFingerMaxSequenceDuration = settings.fiveFingerMaxSequenceDuration
+        stateMachine.missionControlCooldownDuration = settings.missionControlCooldown
+        stateMachine.pinchStartThreshold = settings.pinchStartThreshold
+        stateMachine.pinchReleaseThreshold = settings.pinchReleaseThreshold
+        stateMachine.clickMaxDuration = settings.clickMaxDuration
+        stateMachine.dragHoldDelay = settings.dragHoldDelay
+        stateMachine.clickCooldownDuration = settings.clickCooldown
+        
+        cursorEngine.deadZonePixels = settings.cursorDeadzonePixels
+        cursorEngine.filter.updateCoefficients(minCutoff: settings.filterMinCutoff, beta: settings.filterBeta)
+    }
+    
     @MainActor
     public func start() {
+        applySettings(AppSettings.load())
         cursorEngine.mapper.updateScreenBounds()
         stateMachine.screenBounds = cursorEngine.mapper.screenBounds
         let isTrusted = PermissionsHelper.isAccessibilityAuthorized
@@ -92,8 +112,12 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             
             // 1. Process Temporal State Machine
             let smEvents = stateMachine.process(hand: hand, metrics: metrics, timestamp: timestamp)
+            var swipeTriggeredName: String?
             for event in smEvents {
                 actionRouter.handle(event: event)
+                if case .switchSpace(let dir) = event {
+                    swipeTriggeredName = "🚀 SWIPE \(dir.rawValue.uppercased())"
+                }
             }
             
             // 2. Cursor Navigation: ONLY active in oneFingerCursor mode
@@ -113,7 +137,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                 cursorEngine.reset()
             }
             
-            let currentGestureName = stateMachine.currentState.rawValue
+            let currentGestureName = swipeTriggeredName ?? stateMachine.currentState.rawValue
             
             Task { @MainActor in
                 self.updateFPS(timestamp: timestamp)

@@ -17,10 +17,10 @@ public struct AppSettings: Codable, Sendable {
     public var clickCooldown: Double = 0.25
     
     // 4-Finger Swipe settings
-    public var swipeMinDisplacement: Double = 0.10
-    public var swipeMinVelocity: Double = 0.45
-    public var swipeMaxDuration: Double = 0.35
-    public var swipeCooldown: Double = 0.50
+    public var swipeMinDisplacement: Double = 0.09
+    public var swipeMinVelocity: Double = 0.15
+    public var swipeMaxDuration: Double = 0.85
+    public var swipeCooldown: Double = 0.40
     
     // 5-Finger Mission Control settings
     public var fiveFingerPinchThreshold: Double = 0.22
@@ -44,8 +44,17 @@ public struct AppSettings: Codable, Sendable {
     
     public static func load() -> AppSettings {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-              let settings = try? JSONDecoder().decode(AppSettings.self, from: data) else {
+              var settings = try? JSONDecoder().decode(AppSettings.self, from: data) else {
             return AppSettings()
+        }
+        if settings.swipeMaxDuration < 0.60 {
+            settings.swipeMaxDuration = 0.85
+        }
+        if settings.swipeMinVelocity > 0.30 {
+            settings.swipeMinVelocity = 0.15
+        }
+        if settings.swipeMinDisplacement > 0.12 {
+            settings.swipeMinDisplacement = 0.09
         }
         return settings
     }

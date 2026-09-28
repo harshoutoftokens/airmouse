@@ -69,6 +69,13 @@ public struct OneEuroFilter: SignalFilter {
         filterY.reset()
     }
     
+    public mutating func updateCoefficients(minCutoff: Double, beta: Double) {
+        filterX.minCutoff = minCutoff
+        filterX.beta = beta
+        filterY.minCutoff = minCutoff
+        filterY.beta = beta
+    }
+    
     public mutating func filter(point: CGPoint, timestamp: TimeInterval) -> CGPoint {
         let x = filterX.filter(value: Double(point.x), timestamp: timestamp)
         let y = filterY.filter(value: Double(point.y), timestamp: timestamp)

@@ -35,10 +35,10 @@ public final class GestureStateMachine: @unchecked Sendable {
     public var clickCooldownDuration: TimeInterval = 0.20
     
     // 4-Finger Fast Swipe parameters
-    public var swipeMinDisplacement: Double = 0.10
-    public var swipeMinVelocity: Double = 0.30
-    public var swipeMaxDuration: TimeInterval = 0.40
-    public var swipeDirectionRatio: Double = 1.3
+    public var swipeMinDisplacement: Double = 0.09
+    public var swipeMinVelocity: Double = 0.15
+    public var swipeMaxDuration: TimeInterval = 0.85
+    public var swipeDirectionRatio: Double = 1.05
     public var swipeCooldownDuration: TimeInterval = 0.40
     
     // 5-Finger Mission Control parameters
@@ -59,7 +59,9 @@ public final class GestureStateMachine: @unchecked Sendable {
     private var consecutiveTwoFingerFrames: Int = 0
     private var consecutiveOneFingerFrames: Int = 0
     
-    // Swipe kinematic buffer
+    // Swipe kinematic buffer & Point A -> Point B tracking
+    private var swipeAnchorPoint: Landmark?
+    private var swipeAnchorTime: TimeInterval?
     private var centroidHistory: [CentroidSample] = []
     
     // 5-finger temporal state tracking
@@ -84,6 +86,8 @@ public final class GestureStateMachine: @unchecked Sendable {
         consecutiveTwoFingerFrames = 0
         consecutiveOneFingerFrames = 0
         centroidHistory.removeAll()
+        swipeAnchorPoint = nil
+        swipeAnchorTime = nil
         fiveFingerSequenceStartTime = nil
         previousSpread = 0.0
     }
@@ -116,6 +120,8 @@ public final class GestureStateMachine: @unchecked Sendable {
             consecutiveOneFingerFrames = 0
             consecutiveTwoFingerFrames = 0
             centroidHistory.removeAll()
+            swipeAnchorPoint = nil
+            swipeAnchorTime = nil
             fiveFingerSequenceStartTime = nil
             return emittedEvents
         }
@@ -141,10 +147,6 @@ public final class GestureStateMachine: @unchecked Sendable {
             consecutiveTwoFingerFrames = 0
         }
         
-        // Record centroid history for swipe detection
-        centroidHistory.append(CentroidSample(point: metrics.centroid, timestamp: timestamp))
-        centroidHistory.removeAll { timestamp - $0.timestamp > swipeMaxDuration }
-        
         // 3. PRIORITY 1: FIVE-FINGER MISSION CONTROL SEQUENCE
         let isFiveFingerState = currentState.rawValue.contains("FIVE_FINGER")
         let isFiveFingerPose = (extCount >= 5 && spread >= fiveFingerOpenThreshold)
@@ -154,28 +156,38 @@ public final class GestureStateMachine: @unchecked Sendable {
             if !events.isEmpty {
                 return events
             }
-            if currentState.rawValue.contains("FIVE_FINGER") {
+            // If in active contracting / pinch sequence, let Mission Control take precedence
+            if currentState == .fiveFingerContracting ||
+               currentState == .fiveFingerPinchLocked ||
+               currentState == .fiveFingerExpanding {
                 return []
             }
+            // If in fiveFingerOpen, allow horizontal swipe if user moved Point A to Point B!
         }
         
-        // 4. PRIORITY 2: FOUR-FINGER FAST SWIPE
+        // 4. PRIORITY 2: FOUR-FINGER / MULTI-FINGER HORIZONTAL SWIPE (Point A -> Point B)
+        let isMultiFinger = isMultiFingerSwipePose(metrics: metrics)
+        if isMultiFinger || currentState == .fiveFingerOpen {
+            let events = processFourFingerSwipe(metrics: metrics, timestamp: timestamp)
+            if !events.isEmpty {
+                return events
+            }
+            if currentState != .cooldown && !currentState.rawValue.contains("FIVE_FINGER") {
+                currentState = .fourFingerCandidate
+            }
+            if isMultiFinger {
+                return []
+            }
+        } else {
+            swipeAnchorPoint = nil
+            swipeAnchorTime = nil
+        }
+        
+        // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
         let isIndexExtended = (metrics.state(for: .index) == .extended)
         let isMiddleExtended = (metrics.state(for: .middle) == .extended)
         let isRingExtended = (metrics.state(for: .ring) == .extended)
         let isLittleExtended = (metrics.state(for: .little) == .extended)
-        
-        let isFourFingerPose = (extCount >= 3 && extCount <= 5 && isIndexExtended && isMiddleExtended && isRingExtended) || extCount == 4
-        if isFourFingerPose {
-            let events = processFourFingerSwipe(timestamp: timestamp)
-            if !events.isEmpty {
-                return events
-            }
-            currentState = .fourFingerCandidate
-            return []
-        }
-        
-        // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
         
         let isPinchTriggered = isIndexExtended && (pinchDist < pinchStartThreshold) && !isRingExtended && !isLittleExtended
         let isPointingWithOneFinger = isIndexExtended && !isMiddleExtended && !isRingExtended && !isLittleExtended && (pinchDist >= pinchStartThreshold)
@@ -286,26 +298,116 @@ public final class GestureStateMachine: @unchecked Sendable {
         return emittedEvents
     }
     
-    // MARK: - Four-Finger Fast Swipe Kinematics
-    private func processFourFingerSwipe(timestamp: TimeInterval) -> [AbstractGestureEvent] {
-        guard centroidHistory.count >= 2 else { return [] }
-        guard let first = centroidHistory.first, let last = centroidHistory.last else { return [] }
+    // MARK: - Four-Finger / Multi-Finger Swipe Kinematics (Point A -> Point B)
+    private func isMultiFingerSwipePose(metrics: HandMetrics) -> Bool {
+        let extCount = metrics.extendedFingerCount
+        let pinchDist = metrics.pinchDistance
         
-        let dt = last.timestamp - first.timestamp
-        guard dt >= 0.04 && dt <= swipeMaxDuration else { return [] }
+        let indexState = metrics.state(for: .index)
+        let middleState = metrics.state(for: .middle)
+        let ringState = metrics.state(for: .ring)
+        let littleState = metrics.state(for: .little)
+        let thumbState = metrics.state(for: .thumb)
         
-        let dx = last.point.x - first.point.x
-        let dy = last.point.y - first.point.y
+        let isIndexUp = (indexState == .extended || indexState == .partiallyExtended)
+        let isMiddleUp = (middleState == .extended || middleState == .partiallyExtended)
+        let isRingUp = (ringState == .extended || ringState == .partiallyExtended)
+        let isLittleUp = (littleState == .extended || littleState == .partiallyExtended)
+        let isThumbUp = (thumbState == .extended || thumbState == .partiallyExtended)
+        
+        let uprightCount = [isIndexUp, isMiddleUp, isRingUp, isLittleUp, isThumbUp].filter { $0 }.count
+        
+        // Exclude single finger pointing
+        if isIndexUp && !isMiddleUp && !isRingUp && !isLittleUp {
+            return false
+        }
+        
+        // Exclude two-finger pause
+        if isIndexUp && isMiddleUp && !isRingUp && !isLittleUp && uprightCount == 2 {
+            return false
+        }
+        
+        // Exclude pinch
+        if isIndexUp && (pinchDist < pinchStartThreshold) && !isRingUp && !isLittleUp {
+            return false
+        }
+        
+        // Classic 4 extended fingers (or 5 open fingers)
+        if extCount >= 4 {
+            return true
+        }
+        
+        // 3 extended with at least 4 upright fingers (handles partially extended little/ring/thumb)
+        if extCount >= 3 && uprightCount >= 4 && isIndexUp && isMiddleUp {
+            return true
+        }
+        
+        // At least 4 upright fingers with index and middle up
+        if uprightCount >= 4 && isIndexUp && isMiddleUp && (isRingUp || isLittleUp) {
+            return true
+        }
+        
+        // Extended index, middle, ring (classical 3+ fingers)
+        if indexState == .extended && middleState == .extended && ringState == .extended {
+            return true
+        }
+        
+        return false
+    }
+    
+    private func processFourFingerSwipe(metrics: HandMetrics, timestamp: TimeInterval) -> [AbstractGestureEvent] {
+        let currentCentroid = metrics.centroid
+        
+        centroidHistory.append(CentroidSample(point: currentCentroid, timestamp: timestamp))
+        centroidHistory.removeAll { timestamp - $0.timestamp > swipeMaxDuration }
+        
+        guard let anchor = swipeAnchorPoint, let startTime = swipeAnchorTime else {
+            swipeAnchorPoint = currentCentroid
+            swipeAnchorTime = timestamp
+            return []
+        }
+        
+        let dx = currentCentroid.x - anchor.x
+        let dy = currentCentroid.y - anchor.y
         let absDx = abs(dx)
         let absDy = abs(dy)
-        let velocity = absDx / dt
+        let dt = timestamp - startTime
         
-        if absDx >= swipeMinDisplacement && velocity >= swipeMinVelocity && absDx >= (absDy * swipeDirectionRatio) {
+        // If hand is resting / hovering near Point A, keep refreshing Point A to current position
+        // so that the swipe displacement is measured from where the stroke actually starts!
+        if absDx < 0.035 && absDy < 0.035 {
+            swipeAnchorPoint = currentCentroid
+            swipeAnchorTime = timestamp
+            return []
+        }
+        
+        // User has moved from Point A towards Point B!
+        // Check if displacement (~10 cm in camera coordinates) is reached with horizontal dominance:
+        let isHorizontal = absDx >= (absDy * swipeDirectionRatio)
+        let isFarEnough = absDx >= swipeMinDisplacement
+        let isTimely = dt >= 0.04 && dt <= swipeMaxDuration
+        
+        if isFarEnough && isHorizontal && isTimely {
+            // dx > 0: Hand moved to the right -> Trigger swipe to desktop on the right!
+            // dx < 0: Hand moved to the left -> Trigger swipe to desktop on the left!
             let direction: SwipeDirection = (dx > 0) ? .right : .left
+            print("🚀 AirTrackpad: 4-Finger Desktop Switch Triggered: \(direction) (dx: \(String(format: "%.3f", dx)), dt: \(String(format: "%.3f", dt))s)")
+            
+            swipeAnchorPoint = nil
+            swipeAnchorTime = nil
             centroidHistory.removeAll()
+            fiveFingerSequenceStartTime = nil
+            
             currentState = .cooldown
             cooldownUntil = timestamp + swipeCooldownDuration
+            
             return [.switchSpace(direction: direction)]
+        }
+        
+        // If stroke took too long (> swipeMaxDuration) without reaching displacement, reset anchor to current point
+        if dt > swipeMaxDuration {
+            swipeAnchorPoint = currentCentroid
+            swipeAnchorTime = timestamp
         }
         
         return []

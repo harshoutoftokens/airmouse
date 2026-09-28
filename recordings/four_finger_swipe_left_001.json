@@ -25,7 +25,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "159D5E28-C2A9-4597-A46B-C97C42D73A80",
+        "id" : "EA2E8B8E-92D7-4C60-9DFB-CE2AC5B35D3A",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -81,7 +81,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "D8FF9C82-1983-4FB3-A9DE-E42BBE892818",
+        "id" : "5070F341-2DC5-4E6E-BFDF-AFBE9C604F72",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -137,7 +137,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "05739CBF-75F0-4364-A093-628F4F8E5DA1",
+        "id" : "9EE50D5B-C9BB-478B-B0DA-76F50EA0652B",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -193,7 +193,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "29B7BEA3-4764-4E41-A1DB-E95414992937",
+        "id" : "18DE605D-B6B7-4BC3-AAA0-D63ECFC9F5FD",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -249,7 +249,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "E186A61B-0386-4891-BCC5-9FA9EE217DA3",
+        "id" : "938E3350-8044-456F-B4AF-16F2993DB30A",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -282,6 +282,6 @@
     }
   ],
   "name" : "four_finger_swipe_left_001",
-  "recordedAt" : 812212792.821653,
+  "recordedAt" : 812320177.784267,
   "targetFPS" : 60
 }
