@@ -160,7 +160,7 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
             let endVelocity: Double = 130.0
             let perStepUs = UInt32((rampMs / Double(steps)) * 1000.0)
             
-            Self.postDockPhase(.began, progress: 0.0, velocity: 0.0)
+            Self.postDockPhase(.began, progress: sign * 1e-4, velocity: sign * 10.0)
             for step in 1...steps {
                 let frac = Double(step) / Double(steps)
                 Self.postDockPhase(.changed,

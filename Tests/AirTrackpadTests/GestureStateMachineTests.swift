@@ -247,4 +247,23 @@ final class GestureStateMachineTests: XCTestCase {
             XCTAssertTrue(events.isEmpty, "Static open palm should never trigger Mission Control")
         }
     }
+    
+    func testSwipeWorksFromFiveFingerOpenPose() {
+        let sm = GestureStateMachine()
+        
+        // Hand starts in 5-finger open pose at x=0.30
+        let (h1, m1) = makeHand(timestamp: 1.00, extendedFingers: 5, pinchDistance: 0.5, spread: 0.52, centroid: Landmark(x: 0.30, y: 0.50))
+        _ = sm.process(hand: h1, metrics: m1, timestamp: 1.00)
+        
+        // Hand moves horizontally to x=0.45 across 0.15s (10cm displacement)
+        let (h2, m2) = makeHand(timestamp: 1.15, extendedFingers: 5, pinchDistance: 0.5, spread: 0.50, centroid: Landmark(x: 0.45, y: 0.50))
+        let events = sm.process(hand: h2, metrics: m2, timestamp: 1.15)
+        
+        XCTAssertEqual(events.count, 1)
+        if case .switchSpace(let dir) = events.first {
+            XCTAssertEqual(dir, .right)
+        } else {
+            XCTFail("Expected switchSpace event when swiping with open hand")
+        }
+    }
 }

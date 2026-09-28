@@ -147,40 +147,39 @@ public final class GestureStateMachine: @unchecked Sendable {
             consecutiveTwoFingerFrames = 0
         }
         
-        // 3. PRIORITY 1: FIVE-FINGER MISSION CONTROL SEQUENCE
+        // 3. PRIORITY 1: MULTI-FINGER HORIZONTAL SWIPE (Point A -> Point B)
+        // Whenever a multi-finger or open-palm pose is detected, evaluate horizontal displacement.
+        // A distinct horizontal stroke (Point A -> Point B) ALWAYS triggers desktop switching,
+        // even if Mission Control is open or the hand has 5 open fingers.
+        let isMultiFinger = isMultiFingerSwipePose(metrics: metrics)
         let isFiveFingerState = currentState.rawValue.contains("FIVE_FINGER")
         let isFiveFingerPose = (extCount >= 5 && spread >= fiveFingerOpenThreshold)
         
+        if isMultiFinger || isFiveFingerState || isFiveFingerPose {
+            let events = processFourFingerSwipe(metrics: metrics, timestamp: timestamp)
+            if !events.isEmpty {
+                fiveFingerSequenceStartTime = nil
+                return events
+            }
+        } else {
+            swipeAnchorPoint = nil
+            swipeAnchorTime = nil
+        }
+        
+        // 4. PRIORITY 2: FIVE-FINGER MISSION CONTROL SEQUENCE (Open palm -> Pinch in -> Expand out)
         if isFiveFingerState || isFiveFingerPose {
             let events = processFiveFingerSequence(metrics: metrics, timestamp: timestamp)
             if !events.isEmpty {
                 return events
             }
-            // If in active contracting / pinch sequence, let Mission Control take precedence
-            if currentState == .fiveFingerContracting ||
-               currentState == .fiveFingerPinchLocked ||
-               currentState == .fiveFingerExpanding {
+            if currentState.rawValue.contains("FIVE_FINGER") {
                 return []
             }
-            // If in fiveFingerOpen, allow horizontal swipe if user moved Point A to Point B!
         }
         
-        // 4. PRIORITY 2: FOUR-FINGER / MULTI-FINGER HORIZONTAL SWIPE (Point A -> Point B)
-        let isMultiFinger = isMultiFingerSwipePose(metrics: metrics)
-        if isMultiFinger || currentState == .fiveFingerOpen {
-            let events = processFourFingerSwipe(metrics: metrics, timestamp: timestamp)
-            if !events.isEmpty {
-                return events
-            }
-            if currentState != .cooldown && !currentState.rawValue.contains("FIVE_FINGER") {
-                currentState = .fourFingerCandidate
-            }
-            if isMultiFinger {
-                return []
-            }
-        } else {
-            swipeAnchorPoint = nil
-            swipeAnchorTime = nil
+        if isMultiFinger && currentState != .cooldown && !currentState.rawValue.contains("FIVE_FINGER") {
+            currentState = .fourFingerCandidate
+            return []
         }
         
         // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
@@ -420,10 +419,10 @@ public final class GestureStateMachine: @unchecked Sendable {
         
         switch currentState {
         case .idle, .oneFingerCursor, .twoFingerDetected, .fourFingerCandidate:
-            if extCount >= 4 && spread >= fiveFingerOpenThreshold {
+            if extCount >= 5 && spread >= fiveFingerOpenThreshold {
                 currentState = .fiveFingerOpen
                 fiveFingerSequenceStartTime = timestamp
-            } else if spread <= fiveFingerPinchThreshold {
+            } else if extCount >= 5 && spread <= fiveFingerPinchThreshold {
                 currentState = .fiveFingerPinchLocked
                 fiveFingerSequenceStartTime = timestamp
             }
