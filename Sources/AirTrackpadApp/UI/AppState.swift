@@ -13,6 +13,7 @@ public final class AppState: ObservableObject {
     @Published public var isRunning: Bool = false
     @Published public var isAccessibilityGranted: Bool = false
     @Published public var currentFrameImage: CGImage?
+    @Published public var cursorSpeedMultiplier: Double = 1.0
     
     public init() {}
 }

@@ -165,8 +165,24 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                     trackingPoint = nil
                 }
                 
+                // 3. Dynamic speed multiplier:
+                // One finger: 1.0x (standard mapping)
+                // Two fingers: speed is proportional to the distance between the pinching fingers
+                var speedMultiplier: Double = 1.0
+                if stateMachine.currentState != .oneFingerCursor,
+                   let m = metrics {
+                    let pinchDist = m.pinchDistance
+                    // Reference nominal pinch distance is 0.28.
+                    // When pinchDist is 0.28, speed is 1.0x.
+                    // When pinchDist is small (e.g. 0.15 - 0.18 right before click), speed scales down to 0.4x - 0.6x for fine-grained accuracy.
+                    // When pinchDist is wide (e.g. 0.35 - 0.45), speed scales up to 1.3x - 1.6x.
+                    let nominalDist: Double = 0.28
+                    let rawRatio = pinchDist / nominalDist
+                    speedMultiplier = min(max(rawRatio, 0.35), 2.2)
+                }
+                
                 if let pt = trackingPoint,
-                   let cursorEvent = cursorEngine.process(trackingPoint: pt, timestamp: timestamp) {
+                   let cursorEvent = cursorEngine.process(trackingPoint: pt, timestamp: timestamp, speedMultiplier: speedMultiplier) {
                     actionRouter.handle(event: cursorEvent)
                     if case .cursorMoved(let pt) = cursorEvent {
                         stateMachine.updateCursorPosition(pt)
@@ -178,6 +194,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             }
             
             let currentGestureName = swipeTriggeredName ?? stateMachine.currentState.rawValue
+            let activeSpeedMultiplier = (stateMachine.currentState == .oneFingerCursor || hand == nil) ? 1.0 : (metrics.map { min(max($0.pinchDistance / 0.28, 0.35), 2.2) } ?? 1.0)
             
             var previewImage: CGImage?
             if self.frameCount % 2 == 0 {
@@ -191,6 +208,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                 self.appState.observations = observations
                 self.appState.metrics = metrics
                 self.appState.activeGestureName = currentGestureName
+                self.appState.cursorSpeedMultiplier = activeSpeedMultiplier
                 if let img = previewImage {
                     self.appState.currentFrameImage = img
                 }

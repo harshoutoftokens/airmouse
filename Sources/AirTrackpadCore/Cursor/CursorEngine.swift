@@ -28,7 +28,11 @@ public final class CursorEngine: @unchecked Sendable {
     }
     
     /// Processes a tracking point (e.g. index fingertip or two-finger midpoint) and produces a cursor move event.
-    public func process(trackingPoint: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
+    public func process(
+        trackingPoint: Landmark,
+        timestamp: TimeInterval,
+        speedMultiplier: Double = 1.0
+    ) -> AbstractGestureEvent? {
         lock.lock()
         defer { lock.unlock() }
         
@@ -44,18 +48,25 @@ public final class CursorEngine: @unchecked Sendable {
         }
         
         // 3. Compute pixel displacement from last emitted position
-        let dx = Double(filteredPoint.x - prev.x)
-        let dy = Double(filteredPoint.y - prev.y)
-        let displacement = hypot(dx, dy)
+        let rawDx = Double(filteredPoint.x - prev.x)
+        let rawDy = Double(filteredPoint.y - prev.y)
+        let rawDisplacement = hypot(rawDx, rawDy)
         
         // 4. Dead-zone test — suppresses camera sensor noise and finger micro-tremors
-        guard displacement >= deadZonePixels else {
+        guard rawDisplacement >= deadZonePixels else {
             return nil
         }
         
-        // 5. Clamp to screen boundary
-        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, filteredPoint.x))
-        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, filteredPoint.y))
+        // 5. Apply dynamic speed multiplier (1.0 for single finger; distance-scaled for two fingers)
+        let dx = rawDx * speedMultiplier
+        let dy = rawDy * speedMultiplier
+        
+        let newX = prev.x + dx
+        let newY = prev.y + dy
+        
+        // 6. Clamp to screen boundary
+        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, newX))
+        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, newY))
         let targetPoint = CGPoint(x: clampedX, y: clampedY)
         
         self.lastScreenPoint = targetPoint

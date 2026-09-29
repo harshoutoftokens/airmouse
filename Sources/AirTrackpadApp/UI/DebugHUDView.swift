@@ -103,6 +103,12 @@ public struct DebugHUDView: View {
                 )
                 
                 MetricCard(
+                    title: "SPEED",
+                    value: String(format: "%.1fx", appState.cursorSpeedMultiplier),
+                    color: appState.cursorSpeedMultiplier < 0.95 ? .cyan : (appState.cursorSpeedMultiplier > 1.05 ? .yellow : .green)
+                )
+                
+                MetricCard(
                     title: "ACTIVE STATE",
                     value: appState.activeGestureName,
                     color: .cyan
