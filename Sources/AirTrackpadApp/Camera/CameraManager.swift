@@ -58,11 +58,19 @@ public final class CameraManager: NSObject, @unchecked Sendable {
         captureSession.beginConfiguration()
         captureSession.sessionPreset = .hd1280x720
         
-        guard let camera = AVCaptureDevice.default(for: .video),
+        let camera: AVCaptureDevice? = {
+            if let front = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
+                return front
+            }
+            return AVCaptureDevice.default(for: .video)
+        }()
+        
+        guard let camera = camera,
               let input = try? AVCaptureDeviceInput(device: camera) else {
             captureSession.commitConfiguration()
             return
         }
+        print("🎥 CameraManager: Active camera: \(camera.localizedName)")
         
         if captureSession.canAddInput(input) {
             captureSession.addInput(input)

@@ -139,20 +139,26 @@ public final class GestureStateMachine: @unchecked Sendable {
         let middleState = metrics.state(for: .middle)
         let ringState = metrics.state(for: .ring)
         let littleState = metrics.state(for: .little)
-        let thumbState = metrics.state(for: .thumb)
         
         let isIndexExtended = (indexState == .extended)
         let isIndexUp = (indexState == .extended || indexState == .partiallyExtended)
         let isMiddleUp = (middleState == .extended || middleState == .partiallyExtended)
         let isRingExtended = (ringState == .extended)
         let isLittleExtended = (littleState == .extended)
-        let isThumbActive = (thumbState == .extended || thumbState == .partiallyExtended)
         
-        // Two fingers detected: Index + Thumb (pinch prep) OR Index + Middle (tap pause) OR extCount >= 2
-        let isTwoFingersDetected = ((isIndexExtended || isIndexUp) && (isMiddleUp || isThumbActive || extCount >= 2) && !isRingExtended && !isLittleExtended)
+        // Cursor Freeze Threshold: when fingers converge towards pinch (<= 0.22), cursor locks instantly
+        let pinchFreezeThreshold = pinchReleaseThreshold // 0.22
         
-        // Pure single finger pointing: only index is up, thumb is folded/inactive, middle/ring/pinky folded
-        let isPointingWithOneFinger = isIndexExtended && !isMiddleUp && !isRingExtended && !isLittleExtended && !isThumbActive && (extCount <= 1) && (pinchDist > pinchStartThreshold)
+        // Two fingers detected:
+        // 1. Index + Middle raised together
+        // 2. OR Index up and thumb converging for pinch (pinchDist <= 0.22)
+        // 3. OR 2 fingers extended
+        let isTwoFingersDetected = ((isIndexUp && isMiddleUp && !isRingExtended && !isLittleExtended) ||
+                                    (isIndexUp && pinchDist <= pinchFreezeThreshold && !isRingExtended && !isLittleExtended) ||
+                                    (extCount == 2 && !isRingExtended && !isLittleExtended))
+        
+        // Pure single finger pointing: Index extended, middle/ring/pinky folded, pinch distance clear (> 0.22)
+        let isPointingWithOneFinger = isIndexExtended && !isMiddleUp && !isRingExtended && !isLittleExtended && (pinchDist > pinchFreezeThreshold)
         
         // Update stability counters
         if isTwoFingersDetected || extCount >= 2 {
@@ -219,10 +225,10 @@ public final class GestureStateMachine: @unchecked Sendable {
             if isPinchTriggered {
                 currentState = .pinchCandidate
                 pinchStartTime = timestamp
-            } else if isTwoFingersDetected {
-                currentState = .twoFingerDetected
             } else if isPointingWithOneFinger {
                 currentState = .oneFingerCursor
+            } else if isTwoFingersDetected {
+                currentState = .twoFingerDetected
             }
             
         case .oneFingerCursor:
@@ -239,8 +245,8 @@ public final class GestureStateMachine: @unchecked Sendable {
             if isPinchTriggered {
                 currentState = .pinchCandidate
                 pinchStartTime = timestamp
-            } else if isPointingWithOneFinger && consecutiveOneFingerFrames >= 4 {
-                // Must have at least 4 consecutive frames of pure single-finger pointing to unfreeze
+            } else if isPointingWithOneFinger && consecutiveOneFingerFrames >= 2 {
+                // Must have at least 2 consecutive frames of pure single-finger pointing to unfreeze
                 currentState = .oneFingerCursor
             } else if extCount == 0 && !isIndexExtended {
                 currentState = .idle

@@ -1,6 +1,7 @@
 import Foundation
 import CoreVideo
 import CoreGraphics
+import CoreImage
 import AirTrackpadCore
 
 public final class TrackingPipelineCoordinator: @unchecked Sendable {
@@ -10,6 +11,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
     private let stateMachine = GestureStateMachine()
     private let actionRouter: ActionRouter
     private let appState: AppState
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
     
     // FPS calculation
     private var lastFrameTime: TimeInterval = 0.0
@@ -139,12 +141,21 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             
             let currentGestureName = swipeTriggeredName ?? stateMachine.currentState.rawValue
             
+            var previewImage: CGImage?
+            if self.frameCount % 2 == 0 {
+                let ci = CIImage(cvPixelBuffer: pixelBuffer)
+                previewImage = self.ciContext.createCGImage(ci, from: ci.extent)
+            }
+            
             Task { @MainActor in
                 self.updateFPS(timestamp: timestamp)
                 self.appState.latencyMs = latencyMs
                 self.appState.observations = observations
                 self.appState.metrics = metrics
                 self.appState.activeGestureName = currentGestureName
+                if let img = previewImage {
+                    self.appState.currentFrameImage = img
+                }
             }
         } catch {
             // Silently continue to next frame on transient Vision error
@@ -159,10 +170,14 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         }
         frameCount += 1
         let dt = timestamp - lastFrameTime
-        if dt >= 0.5 {
+        if dt >= 1.5 {
             let currentFPS = Double(frameCount) / dt
             appState.fps = currentFPS
             appState.isAccessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
+            let hands = appState.observations.count
+            let gesture = appState.activeGestureName
+            let pinch = appState.metrics?.pinchDistance ?? 0.0
+            print("👁 AirTrackpad [\(String(format: "%.1f", currentFPS)) FPS | \(String(format: "%.1f", appState.latencyMs))ms]: Hands=\(hands) | \(gesture) | Pinch=\(String(format: "%.2f", pinch))")
             frameCount = 0
             lastFrameTime = timestamp
         }

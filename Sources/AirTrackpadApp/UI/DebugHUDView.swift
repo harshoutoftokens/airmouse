@@ -63,7 +63,8 @@ public struct DebugHUDView: View {
                     Image(decorative: cgImg, scale: 1.0)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .opacity(0.4)
+                        .scaleEffect(x: -1, y: 1)
+                        .opacity(0.6)
                 }
                 
                 SkeletonOverlayView(observations: appState.observations)

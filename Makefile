@@ -23,6 +23,7 @@ bundle: build
 
 run: bundle
 	@killall AirTrackpad 2>/dev/null || true
+	@sleep 0.5
 	open AirTrackpad.app
 
 clean:
