@@ -104,8 +104,8 @@ public struct DebugHUDView: View {
                 
                 MetricCard(
                     title: "SPEED",
-                    value: String(format: "%.1fx", appState.cursorSpeedMultiplier),
-                    color: appState.cursorSpeedMultiplier < 0.95 ? .cyan : (appState.cursorSpeedMultiplier > 1.05 ? .yellow : .green)
+                    value: appState.cursorSpeedMultiplier < 0.99 ? String(format: "%.2fx SLOW", appState.cursorSpeedMultiplier) : "1.0x",
+                    color: appState.cursorSpeedMultiplier < 0.99 ? .cyan : .green
                 )
                 
                 MetricCard(

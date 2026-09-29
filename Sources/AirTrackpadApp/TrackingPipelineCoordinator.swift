@@ -122,7 +122,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                 }
             }
             
-            // 2. Cursor Navigation: Active in pointing, two-finger, pinch-prep, and dragging modes
+            // 2. Cursor Navigation: Always tracks indexTip consistently without splitting
             let cursorActiveStates: Set<GestureState> = [
                 .oneFingerCursor,
                 .twoFingerDetected,
@@ -131,58 +131,25 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             ]
             
             if cursorActiveStates.contains(stateMachine.currentState),
-               let h = hand {
+               let h = hand,
+               let indexTip = h.landmark(.indexTip),
+               indexTip.confidence > 0.3 {
                 
-                let isMiddleUp = (metrics?.state(for: .middle) == .extended || metrics?.state(for: .middle) == .partiallyExtended)
-                let trackingPoint: Landmark?
-                
-                if isMiddleUp,
-                   let indexTip = h.landmark(.indexTip),
-                   let middleTip = h.landmark(.middleTip),
-                   indexTip.confidence > 0.3, middleTip.confidence > 0.3 {
-                    // Mean of Index Tip and Middle Tip
-                    trackingPoint = Landmark(
-                        x: (indexTip.x + middleTip.x) * 0.5,
-                        y: (indexTip.y + middleTip.y) * 0.5,
-                        z: 0.0,
-                        confidence: min(indexTip.confidence, middleTip.confidence)
-                    )
-                } else if (stateMachine.currentState == .twoFingerDetected || stateMachine.currentState == .pinchCandidate || stateMachine.currentState == .dragging),
-                          let indexTip = h.landmark(.indexTip),
-                          let thumbTip = h.landmark(.thumbTip),
-                          indexTip.confidence > 0.3, thumbTip.confidence > 0.3 {
-                    // Mean of Index Tip and Thumb Tip (pinch prep / drag)
-                    trackingPoint = Landmark(
-                        x: (indexTip.x + thumbTip.x) * 0.5,
-                        y: (indexTip.y + thumbTip.y) * 0.5,
-                        z: 0.0,
-                        confidence: min(indexTip.confidence, thumbTip.confidence)
-                    )
-                } else if let indexTip = h.landmark(.indexTip), indexTip.confidence > 0.3 {
-                    // Single finger: Index fingertip
-                    trackingPoint = indexTip
-                } else {
-                    trackingPoint = nil
-                }
-                
-                // 3. Dynamic speed multiplier:
-                // One finger: 1.0x (standard mapping)
-                // Two fingers: speed is proportional to the distance between the pinching fingers
+                // Precision slow speed: when fingers are close to each other (pinchDistance <= 0.22)
+                // before the pinch gesture is activated (at 0.15), the cursor moves slow (0.25x)
+                // so the user can easily maneuver in small spaces (clicking close buttons without shaking).
                 var speedMultiplier: Double = 1.0
-                if stateMachine.currentState != .oneFingerCursor,
-                   let m = metrics {
+                if let m = metrics {
                     let pinchDist = m.pinchDistance
-                    // Reference nominal pinch distance is 0.28.
-                    // When pinchDist is 0.28, speed is 1.0x.
-                    // When pinchDist is small (e.g. 0.15 - 0.18 right before click), speed scales down to 0.4x - 0.6x for fine-grained accuracy.
-                    // When pinchDist is wide (e.g. 0.35 - 0.45), speed scales up to 1.3x - 1.6x.
-                    let nominalDist: Double = 0.28
-                    let rawRatio = pinchDist / nominalDist
-                    speedMultiplier = min(max(rawRatio, 0.35), 2.2)
+                    let slowThreshold: Double = 0.22
+                    if pinchDist <= slowThreshold {
+                        // Smoothly transition from 1.0x at 0.22 down to 0.25x slow speed as pinch approaches 0.15
+                        let t = max(0.0, min(1.0, (pinchDist - 0.15) / (slowThreshold - 0.15)))
+                        speedMultiplier = 0.25 + 0.75 * t
+                    }
                 }
                 
-                if let pt = trackingPoint,
-                   let cursorEvent = cursorEngine.process(trackingPoint: pt, timestamp: timestamp, speedMultiplier: speedMultiplier) {
+                if let cursorEvent = cursorEngine.process(indexTip: indexTip, timestamp: timestamp, speedMultiplier: speedMultiplier) {
                     actionRouter.handle(event: cursorEvent)
                     if case .cursorMoved(let pt) = cursorEvent {
                         stateMachine.updateCursorPosition(pt)
@@ -194,7 +161,15 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             }
             
             let currentGestureName = swipeTriggeredName ?? stateMachine.currentState.rawValue
-            let activeSpeedMultiplier = (stateMachine.currentState == .oneFingerCursor || hand == nil) ? 1.0 : (metrics.map { min(max($0.pinchDistance / 0.28, 0.35), 2.2) } ?? 1.0)
+            let activeSpeedMultiplier: Double = {
+                guard let m = metrics, stateMachine.currentState != .idle else { return 1.0 }
+                let pinchDist = m.pinchDistance
+                if pinchDist <= 0.22 {
+                    let t = max(0.0, min(1.0, (pinchDist - 0.15) / (0.22 - 0.15)))
+                    return 0.25 + 0.75 * t
+                }
+                return 1.0
+            }()
             
             var previewImage: CGImage?
             if self.frameCount % 2 == 0 {

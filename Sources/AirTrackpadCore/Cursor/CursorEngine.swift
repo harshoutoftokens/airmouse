@@ -7,7 +7,8 @@ public final class CursorEngine: @unchecked Sendable {
     public var filter: OneEuroFilter
     public var deadZonePixels: Double
     
-    private var lastScreenPoint: CGPoint?
+    private var lastFilteredPoint: CGPoint?
+    private var currentCursorPoint: CGPoint?
     private let lock = NSLock()
     
     public init(
@@ -24,12 +25,15 @@ public final class CursorEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         filter.reset()
-        lastScreenPoint = nil
+        lastFilteredPoint = nil
+        currentCursorPoint = nil
     }
     
-    /// Processes a tracking point (e.g. index fingertip or two-finger midpoint) and produces a cursor move event.
+    /// Processes an index fingertip observation and produces a cursor move event.
+    /// When speedMultiplier == 1.0 (single finger), direct 1:1 screen mapping is preserved without drift.
+    /// When speedMultiplier < 1.0 (fingers close in precision mode), displacement is scaled down smoothly without feedback drift.
     public func process(
-        trackingPoint: Landmark,
+        indexTip: Landmark,
         timestamp: TimeInterval,
         speedMultiplier: Double = 1.0
     ) -> AbstractGestureEvent? {
@@ -37,44 +41,62 @@ public final class CursorEngine: @unchecked Sendable {
         defer { lock.unlock() }
         
         // 1. Map normalized camera landmark to target screen pixels
-        let rawScreenPoint = mapper.mapToScreen(normalizedX: trackingPoint.x, normalizedY: trackingPoint.y)
+        let rawScreenPoint = mapper.mapToScreen(normalizedX: indexTip.x, normalizedY: indexTip.y)
         
         // 2. Filter coordinate using adaptive One Euro Filter
         let filteredPoint = filter.filter(point: rawScreenPoint, timestamp: timestamp)
         
-        guard let prev = lastScreenPoint else {
-            lastScreenPoint = filteredPoint
+        guard let prevFiltered = lastFilteredPoint, let prevCursor = currentCursorPoint else {
+            lastFilteredPoint = filteredPoint
+            currentCursorPoint = filteredPoint
             return .cursorMoved(to: filteredPoint)
         }
         
-        // 3. Compute pixel displacement from last emitted position
-        let rawDx = Double(filteredPoint.x - prev.x)
-        let rawDy = Double(filteredPoint.y - prev.y)
-        let rawDisplacement = hypot(rawDx, rawDy)
+        // 3. Compute real physical movement of the hand between consecutive frames
+        let deltaX = Double(filteredPoint.x - prevFiltered.x)
+        let deltaY = Double(filteredPoint.y - prevFiltered.y)
+        let displacement = hypot(deltaX, deltaY)
+        
+        self.lastFilteredPoint = filteredPoint
         
         // 4. Dead-zone test — suppresses camera sensor noise and finger micro-tremors
-        guard rawDisplacement >= deadZonePixels else {
+        guard displacement >= deadZonePixels else {
             return nil
         }
         
-        // 5. Apply dynamic speed multiplier (1.0 for single finger; distance-scaled for two fingers)
-        let dx = rawDx * speedMultiplier
-        let dy = rawDy * speedMultiplier
-        
-        let newX = prev.x + dx
-        let newY = prev.y + dy
+        // 5. Target point calculation:
+        // - At 1.0x (normal pointing): absolute mapping directly to filteredPoint (no drift)
+        // - In precision slow mode (< 1.0): scales delta to dampen hand tremor
+        let targetX: CGFloat
+        let targetY: CGFloat
+        if abs(speedMultiplier - 1.0) < 0.01 {
+            targetX = filteredPoint.x
+            targetY = filteredPoint.y
+        } else {
+            let clampedMultiplier = max(0.10, min(1.0, speedMultiplier))
+            targetX = prevCursor.x + deltaX * clampedMultiplier
+            targetY = prevCursor.y + deltaY * clampedMultiplier
+        }
         
         // 6. Clamp to screen boundary
-        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, newX))
-        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, newY))
+        let clampedX = max(mapper.screenBounds.minX, min(mapper.screenBounds.maxX, targetX))
+        let clampedY = max(mapper.screenBounds.minY, min(mapper.screenBounds.maxY, targetY))
         let targetPoint = CGPoint(x: clampedX, y: clampedY)
         
-        self.lastScreenPoint = targetPoint
+        self.currentCursorPoint = targetPoint
         return .cursorMoved(to: targetPoint)
     }
     
-    /// Convenience wrapper for index fingertip observations.
+    /// Overload for backwards compatibility
+    public func process(trackingPoint: Landmark, timestamp: TimeInterval, speedMultiplier: Double = 1.0) -> AbstractGestureEvent? {
+        process(indexTip: trackingPoint, timestamp: timestamp, speedMultiplier: speedMultiplier)
+    }
+    
+    public func process(trackingPoint: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
+        process(indexTip: trackingPoint, timestamp: timestamp, speedMultiplier: 1.0)
+    }
+    
     public func process(indexTip: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
-        process(trackingPoint: indexTip, timestamp: timestamp)
+        process(indexTip: indexTip, timestamp: timestamp, speedMultiplier: 1.0)
     }
 }

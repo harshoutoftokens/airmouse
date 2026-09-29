@@ -40,22 +40,22 @@ final class CursorEngineTests: XCTestCase {
     func testSpeedMultiplierScalesDisplacement() {
         let mapper = ScreenMapper(screenBounds: CGRect(x: 0, y: 0, width: 1000, height: 1000))
         let engineNormal = CursorEngine(mapper: mapper, deadZonePixels: 0.0)
-        let engineFast = CursorEngine(mapper: mapper, deadZonePixels: 0.0)
+        let engineSlow = CursorEngine(mapper: mapper, deadZonePixels: 0.0)
         
         let p0 = Landmark(x: 0.5, y: 0.5)
         let p1 = Landmark(x: 0.55, y: 0.5)
         
         guard case .cursorMoved(let normal0) = engineNormal.process(trackingPoint: p0, timestamp: 1.0, speedMultiplier: 1.0),
               case .cursorMoved(let normal1) = engineNormal.process(trackingPoint: p1, timestamp: 1.016, speedMultiplier: 1.0),
-              case .cursorMoved(let fast0) = engineFast.process(trackingPoint: p0, timestamp: 1.0, speedMultiplier: 2.0),
-              case .cursorMoved(let fast1) = engineFast.process(trackingPoint: p1, timestamp: 1.016, speedMultiplier: 2.0) else {
+              case .cursorMoved(let slow0) = engineSlow.process(trackingPoint: p0, timestamp: 1.0, speedMultiplier: 0.5),
+              case .cursorMoved(let slow1) = engineSlow.process(trackingPoint: p1, timestamp: 1.016, speedMultiplier: 0.5) else {
             XCTFail("Expected cursor move events")
             return
         }
         
         let normalDx = normal1.x - normal0.x
-        let fastDx = fast1.x - fast0.x
+        let slowDx = slow1.x - slow0.x
         
-        XCTAssertEqual(fastDx, normalDx * 2.0, accuracy: 0.1)
+        XCTAssertEqual(slowDx, normalDx * 0.5, accuracy: 0.1)
     }
 }
