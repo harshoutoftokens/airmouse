@@ -27,13 +27,13 @@ public final class CursorEngine: @unchecked Sendable {
         lastScreenPoint = nil
     }
     
-    /// Processes an index fingertip observation and produces a cursor move event if movement exceeds dead-zone.
-    public func process(indexTip: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
+    /// Processes a tracking point (e.g. index fingertip or two-finger midpoint) and produces a cursor move event.
+    public func process(trackingPoint: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
         lock.lock()
         defer { lock.unlock() }
         
         // 1. Map normalized camera landmark to target screen pixels
-        let rawScreenPoint = mapper.mapToScreen(normalizedX: indexTip.x, normalizedY: indexTip.y)
+        let rawScreenPoint = mapper.mapToScreen(normalizedX: trackingPoint.x, normalizedY: trackingPoint.y)
         
         // 2. Filter coordinate using adaptive One Euro Filter
         let filteredPoint = filter.filter(point: rawScreenPoint, timestamp: timestamp)
@@ -60,5 +60,10 @@ public final class CursorEngine: @unchecked Sendable {
         
         self.lastScreenPoint = targetPoint
         return .cursorMoved(to: targetPoint)
+    }
+    
+    /// Convenience wrapper for index fingertip observations.
+    public func process(indexTip: Landmark, timestamp: TimeInterval) -> AbstractGestureEvent? {
+        process(trackingPoint: indexTip, timestamp: timestamp)
     }
 }

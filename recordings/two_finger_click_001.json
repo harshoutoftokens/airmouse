@@ -25,7 +25,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "B4FF5F9A-FB81-4599-BF58-C11A60AE846D",
+        "id" : "1B83BD7D-370E-492A-BB59-F2E6F6155ACC",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -81,7 +81,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "86B83018-2581-45D6-B350-063BEB9432D8",
+        "id" : "CFEB86B6-456C-4621-AE09-1C1D3EF6DABF",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -137,7 +137,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "DB3BDBDC-B736-4016-B094-B9E6820BE842",
+        "id" : "29B15AAB-241C-4270-ABF3-892040116E7B",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -170,6 +170,6 @@
     }
   ],
   "name" : "two_finger_click_001",
-  "recordedAt" : 812355019.393329,
+  "recordedAt" : 812355937.539976,
   "targetFPS" : 60
 }

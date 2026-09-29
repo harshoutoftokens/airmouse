@@ -4,7 +4,7 @@ import CoreGraphics
 public enum GestureState: String, Sendable, Codable {
     case idle = "IDLE"
     case oneFingerCursor = "☝ ONE_FINGER_CURSOR"
-    case twoFingerDetected = "☝☝ TWO_FINGER_PAUSED"
+    case twoFingerDetected = "☝☝ TWO_FINGER_CURSOR"
     case pinchCandidate = "🤏 PINCH_CANDIDATE"
     case dragging = "✊ DRAGGING"
     case fourFingerCandidate = "🖐 FOUR_FINGER_SWIPE_CANDIDATE"
@@ -42,7 +42,7 @@ public final class GestureStateMachine: @unchecked Sendable {
     public var swipeCooldownDuration: TimeInterval = 0.40
     
     // 5-Finger Mission Control parameters
-    public var fiveFingerOpenThreshold: Double = 0.46
+    public var fiveFingerOpenThreshold: Double = 0.40
     public var fiveFingerPinchThreshold: Double = 0.25
     public var fiveFingerMaxSequenceDuration: TimeInterval = 1.40
     public var fiveFingerMinSequenceDuration: TimeInterval = 0.15
@@ -178,7 +178,10 @@ public final class GestureStateMachine: @unchecked Sendable {
         // even if Mission Control is open or the hand has 5 open fingers.
         let isMultiFinger = isMultiFingerSwipePose(metrics: metrics)
         let isFiveFingerState = currentState.rawValue.contains("FIVE_FINGER")
-        let isFiveFingerPose = (extCount >= 5 && spread >= fiveFingerOpenThreshold)
+        let thumbState = metrics.state(for: .thumb)
+        let isThumbPresent = (thumbState == .extended || thumbState == .partiallyExtended || extCount >= 5)
+        let isFiveFingerHand = (extCount >= 5 || (extCount >= 4 && isThumbPresent))
+        let isFiveFingerPose = (isFiveFingerHand && spread >= fiveFingerOpenThreshold)
         
         if isMultiFinger || isFiveFingerState || isFiveFingerPose {
             let events = processFourFingerSwipe(metrics: metrics, timestamp: timestamp)
@@ -437,13 +440,16 @@ public final class GestureStateMachine: @unchecked Sendable {
     private func processFiveFingerSequence(metrics: HandMetrics, timestamp: TimeInterval) -> [AbstractGestureEvent] {
         let spread = metrics.spread
         let extCount = metrics.extendedFingerCount
+        let thumbState = metrics.state(for: .thumb)
+        let isThumbPresent = (thumbState == .extended || thumbState == .partiallyExtended || extCount >= 5)
+        let isFiveFingerHand = (extCount >= 5 || (extCount >= 4 && isThumbPresent))
         
         switch currentState {
         case .idle, .oneFingerCursor, .twoFingerDetected, .fourFingerCandidate:
-            if extCount >= 5 && spread >= fiveFingerOpenThreshold {
+            if isFiveFingerHand && spread >= fiveFingerOpenThreshold {
                 currentState = .fiveFingerOpen
                 fiveFingerSequenceStartTime = timestamp
-            } else if extCount >= 5 && spread <= fiveFingerPinchThreshold {
+            } else if isFiveFingerHand && spread <= fiveFingerPinchThreshold {
                 currentState = .fiveFingerPinchLocked
                 fiveFingerSequenceStartTime = timestamp
             }

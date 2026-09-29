@@ -24,7 +24,7 @@ public struct AppSettings: Codable, Sendable {
     
     // 5-Finger Mission Control settings
     public var fiveFingerPinchThreshold: Double = 0.22
-    public var fiveFingerOpenThreshold: Double = 0.48
+    public var fiveFingerOpenThreshold: Double = 0.40
     public var fiveFingerMaxSequenceDuration: Double = 1.20
     public var missionControlCooldown: Double = 0.60
     
@@ -50,6 +50,9 @@ public struct AppSettings: Codable, Sendable {
         if settings.pinchStartThreshold > 0.16 {
             settings.pinchStartThreshold = 0.15
             settings.pinchReleaseThreshold = 0.22
+        }
+        if settings.fiveFingerOpenThreshold > 0.42 {
+            settings.fiveFingerOpenThreshold = 0.40
         }
         if settings.swipeMaxDuration < 0.60 {
             settings.swipeMaxDuration = 0.85

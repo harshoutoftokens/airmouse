@@ -122,13 +122,51 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                 }
             }
             
-            // 2. Cursor Navigation: ONLY active in oneFingerCursor mode
-            if stateMachine.currentState == .oneFingerCursor,
-               let h = hand,
-               let indexTip = h.landmark(.indexTip),
-               indexTip.confidence > 0.4 {
+            // 2. Cursor Navigation: Active in pointing, two-finger, pinch-prep, and dragging modes
+            let cursorActiveStates: Set<GestureState> = [
+                .oneFingerCursor,
+                .twoFingerDetected,
+                .pinchCandidate,
+                .dragging
+            ]
+            
+            if cursorActiveStates.contains(stateMachine.currentState),
+               let h = hand {
                 
-                if let cursorEvent = cursorEngine.process(indexTip: indexTip, timestamp: timestamp) {
+                let isMiddleUp = (metrics?.state(for: .middle) == .extended || metrics?.state(for: .middle) == .partiallyExtended)
+                let trackingPoint: Landmark?
+                
+                if isMiddleUp,
+                   let indexTip = h.landmark(.indexTip),
+                   let middleTip = h.landmark(.middleTip),
+                   indexTip.confidence > 0.3, middleTip.confidence > 0.3 {
+                    // Mean of Index Tip and Middle Tip
+                    trackingPoint = Landmark(
+                        x: (indexTip.x + middleTip.x) * 0.5,
+                        y: (indexTip.y + middleTip.y) * 0.5,
+                        z: 0.0,
+                        confidence: min(indexTip.confidence, middleTip.confidence)
+                    )
+                } else if (stateMachine.currentState == .twoFingerDetected || stateMachine.currentState == .pinchCandidate || stateMachine.currentState == .dragging),
+                          let indexTip = h.landmark(.indexTip),
+                          let thumbTip = h.landmark(.thumbTip),
+                          indexTip.confidence > 0.3, thumbTip.confidence > 0.3 {
+                    // Mean of Index Tip and Thumb Tip (pinch prep / drag)
+                    trackingPoint = Landmark(
+                        x: (indexTip.x + thumbTip.x) * 0.5,
+                        y: (indexTip.y + thumbTip.y) * 0.5,
+                        z: 0.0,
+                        confidence: min(indexTip.confidence, thumbTip.confidence)
+                    )
+                } else if let indexTip = h.landmark(.indexTip), indexTip.confidence > 0.3 {
+                    // Single finger: Index fingertip
+                    trackingPoint = indexTip
+                } else {
+                    trackingPoint = nil
+                }
+                
+                if let pt = trackingPoint,
+                   let cursorEvent = cursorEngine.process(trackingPoint: pt, timestamp: timestamp) {
                     actionRouter.handle(event: cursorEvent)
                     if case .cursorMoved(let pt) = cursorEvent {
                         stateMachine.updateCursorPosition(pt)

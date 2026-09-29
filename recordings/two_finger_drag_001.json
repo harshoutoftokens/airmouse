@@ -25,7 +25,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "9BF139E9-84CE-4689-9B42-C8F022B30A23",
+        "id" : "057E37CC-6906-4E3A-B4A1-74740B751400",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -81,7 +81,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "9FF478F4-720F-4D7E-B085-DD2BDB3A1593",
+        "id" : "CF6832D7-533A-45A9-80B7-5E7CC56EF3D2",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -137,7 +137,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "CCCE75BA-0D70-4447-9F88-85CFD9C7DF37",
+        "id" : "DAE90338-4CC3-4C9A-B86A-389A929256F2",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -193,7 +193,7 @@
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "1FDC2E92-DB1B-4820-A4F3-3C7DC0AA5CEA",
+        "id" : "5437FF37-92C4-4768-8121-0838395C2021",
         "joints" : {
           "indexTip" : {
             "confidence" : 1,
@@ -226,6 +226,6 @@
     }
   ],
   "name" : "two_finger_drag_001",
-  "recordedAt" : 812355019.394249,
+  "recordedAt" : 812355937.540798,
   "targetFPS" : 60
 }
