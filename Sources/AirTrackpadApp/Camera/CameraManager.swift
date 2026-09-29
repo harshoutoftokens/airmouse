@@ -18,8 +18,8 @@ public final class CameraManager: NSObject, @unchecked Sendable {
     public func start() {
         processingQueue.async { [weak self] in
             guard let self = self else { return }
-            if !self.captureSession.isRunning {
-                self.configureSession()
+            self.configureSession()
+            if !self.captureSession.isRunning && !self.captureSession.inputs.isEmpty {
                 self.captureSession.startRunning()
             }
         }
@@ -53,6 +53,7 @@ public final class CameraManager: NSObject, @unchecked Sendable {
     
     private func configureSession() {
         guard captureSession.inputs.isEmpty else { return }
+        guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
         
         captureSession.beginConfiguration()
         captureSession.sessionPreset = .hd1280x720
@@ -67,19 +68,20 @@ public final class CameraManager: NSObject, @unchecked Sendable {
             captureSession.addInput(input)
         }
         
-        let output = AVCaptureVideoDataOutput()
-        output.alwaysDiscardsLateVideoFrames = true
-        output.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
-        ]
-        output.setSampleBufferDelegate(self, queue: processingQueue)
-        
-        if captureSession.canAddOutput(output) {
-            captureSession.addOutput(output)
+        if self.videoOutput == nil {
+            let output = AVCaptureVideoDataOutput()
+            output.alwaysDiscardsLateVideoFrames = true
+            output.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+            ]
+            output.setSampleBufferDelegate(self, queue: processingQueue)
+            if captureSession.canAddOutput(output) {
+                captureSession.addOutput(output)
+            }
+            self.videoOutput = output
         }
-        self.videoOutput = output
         
-        if let connection = output.connection(with: .video) {
+        if let output = self.videoOutput, let connection = output.connection(with: .video) {
             let frameDuration = CMTime(value: 1, timescale: targetFPS)
             if connection.isVideoMinFrameDurationSupported {
                 connection.videoMinFrameDuration = frameDuration

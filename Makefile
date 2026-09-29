@@ -22,6 +22,7 @@ bundle: build
 	@echo "AirTrackpad.app created successfully."
 
 run: bundle
+	@killall AirTrackpad 2>/dev/null || true
 	open AirTrackpad.app
 
 clean:

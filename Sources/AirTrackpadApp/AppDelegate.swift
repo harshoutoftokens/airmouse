@@ -18,25 +18,32 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator = TrackingPipelineCoordinator(appState: appState)
         setupStatusMenu()
         setupEmergencyStop()
+        showDebugHUD()
         
-        // Check permissions on start
+        // Check permissions and start camera once authorized
         Task {
             if !PermissionsHelper.isCameraAuthorized {
-                _ = await PermissionsHelper.requestCameraAccess()
+                let granted = await PermissionsHelper.requestCameraAccess()
+                if granted {
+                    await MainActor.run {
+                        self.coordinator?.start()
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    self.coordinator?.start()
+                }
             }
             if !PermissionsHelper.isAccessibilityAuthorized {
                 PermissionsHelper.promptAccessibilityPermission()
             }
         }
-        
-        showDebugHUD()
-        coordinator?.start()
     }
     
     private func setupEmergencyStop() {
-        // Global monitor for ESC key (keyCode 53) to immediately halt tracking and release mouse
+        // Global monitor for Ctrl + ESC (keyCode 53 with control modifier) to halt tracking without stealing normal ESC
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
+            if event.keyCode == 53 && event.modifierFlags.contains(.control) {
                 Task { @MainActor in
                     self?.emergencyStopTriggered()
                 }
@@ -46,11 +53,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func emergencyStopTriggered() {
         coordinator?.stop()
-        let alert = NSAlert()
-        alert.messageText = "AirTrackpad: Emergency Stop Activated"
-        alert.informativeText = "Input tracking has been halted and all synthetic buttons have been released."
-        alert.alertStyle = .warning
-        alert.runModal()
     }
     
     private func setupStatusMenu() {
