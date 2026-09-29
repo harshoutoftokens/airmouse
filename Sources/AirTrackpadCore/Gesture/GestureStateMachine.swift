@@ -28,10 +28,10 @@ public final class GestureStateMachine: @unchecked Sendable {
     public var screenBounds: CGRect = CGRect(x: 0, y: 0, width: 1470, height: 956)
     
     // 2-Finger Pinch / Drag parameters
-    public var pinchStartThreshold: Double = 0.24
-    public var pinchReleaseThreshold: Double = 0.32
-    public var clickMaxDuration: TimeInterval = 0.40
-    public var dragHoldDelay: TimeInterval = 0.85 // ~1.0 second hold to activate drag
+    public var pinchStartThreshold: Double = 0.15
+    public var pinchReleaseThreshold: Double = 0.22
+    public var clickMaxDuration: TimeInterval = 0.35
+    public var dragHoldDelay: TimeInterval = 0.35
     public var clickCooldownDuration: TimeInterval = 0.20
     
     // 4-Finger Fast Swipe parameters
@@ -135,11 +135,30 @@ public final class GestureStateMachine: @unchecked Sendable {
         let pinchDist = metrics.pinchDistance
         let spread = metrics.spread
         
+        let indexState = metrics.state(for: .index)
+        let middleState = metrics.state(for: .middle)
+        let ringState = metrics.state(for: .ring)
+        let littleState = metrics.state(for: .little)
+        let thumbState = metrics.state(for: .thumb)
+        
+        let isIndexExtended = (indexState == .extended)
+        let isIndexUp = (indexState == .extended || indexState == .partiallyExtended)
+        let isMiddleUp = (middleState == .extended || middleState == .partiallyExtended)
+        let isRingExtended = (ringState == .extended)
+        let isLittleExtended = (littleState == .extended)
+        let isThumbActive = (thumbState == .extended || thumbState == .partiallyExtended)
+        
+        // Two fingers detected: Index + Thumb (pinch prep) OR Index + Middle (tap pause) OR extCount >= 2
+        let isTwoFingersDetected = ((isIndexExtended || isIndexUp) && (isMiddleUp || isThumbActive || extCount >= 2) && !isRingExtended && !isLittleExtended)
+        
+        // Pure single finger pointing: only index is up, thumb is folded/inactive, middle/ring/pinky folded
+        let isPointingWithOneFinger = isIndexExtended && !isMiddleUp && !isRingExtended && !isLittleExtended && !isThumbActive && (extCount <= 1) && (pinchDist > pinchStartThreshold)
+        
         // Update stability counters
-        if extCount >= 2 {
+        if isTwoFingersDetected || extCount >= 2 {
             consecutiveTwoFingerFrames += 1
             consecutiveOneFingerFrames = 0
-        } else if extCount == 1 {
+        } else if isPointingWithOneFinger {
             consecutiveOneFingerFrames += 1
             consecutiveTwoFingerFrames = 0
         } else {
@@ -183,20 +202,15 @@ public final class GestureStateMachine: @unchecked Sendable {
         }
         
         // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
-        let isIndexExtended = (metrics.state(for: .index) == .extended)
-        let isMiddleExtended = (metrics.state(for: .middle) == .extended)
-        let isRingExtended = (metrics.state(for: .ring) == .extended)
-        let isLittleExtended = (metrics.state(for: .little) == .extended)
+        // Pinch is activated immediately at any instance pinch distance is <= pinchStartThreshold (0.15)
+        let isPinchTriggered = (pinchDist <= pinchStartThreshold) && isIndexUp && !isRingExtended && !isLittleExtended
         
-        let isPinchTriggered = isIndexExtended && (pinchDist < pinchStartThreshold) && !isRingExtended && !isLittleExtended
-        let isPointingWithOneFinger = isIndexExtended && !isMiddleExtended && !isRingExtended && !isLittleExtended && (pinchDist >= pinchStartThreshold)
-        let isTwoFingersDetected = (isIndexExtended && isMiddleExtended && !isRingExtended && !isLittleExtended) || (extCount == 2 && pinchDist >= pinchStartThreshold)
-        
-        // Immediate pinch detection
-        if isPinchTriggered && (currentState == .oneFingerCursor || currentState == .twoFingerDetected || currentState == .idle) {
+        // Immediate pinch detection from any pre-pinch state
+        if isPinchTriggered && (currentState == .oneFingerCursor || currentState == .twoFingerDetected || currentState == .idle || currentState == .fourFingerCandidate) {
             currentState = .pinchCandidate
             pinchStartTime = timestamp
         } else if isTwoFingersDetected && currentState == .oneFingerCursor {
+            // Instant cursor lock! Cursor freezes in place.
             currentState = .twoFingerDetected
         }
         
@@ -205,10 +219,10 @@ public final class GestureStateMachine: @unchecked Sendable {
             if isPinchTriggered {
                 currentState = .pinchCandidate
                 pinchStartTime = timestamp
-            } else if isPointingWithOneFinger {
-                currentState = .oneFingerCursor
             } else if isTwoFingersDetected {
                 currentState = .twoFingerDetected
+            } else if isPointingWithOneFinger {
+                currentState = .oneFingerCursor
             }
             
         case .oneFingerCursor:
@@ -225,7 +239,8 @@ public final class GestureStateMachine: @unchecked Sendable {
             if isPinchTriggered {
                 currentState = .pinchCandidate
                 pinchStartTime = timestamp
-            } else if isPointingWithOneFinger {
+            } else if isPointingWithOneFinger && consecutiveOneFingerFrames >= 4 {
+                // Must have at least 4 consecutive frames of pure single-finger pointing to unfreeze
                 currentState = .oneFingerCursor
             } else if extCount == 0 && !isIndexExtended {
                 currentState = .idle

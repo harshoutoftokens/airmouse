@@ -10,11 +10,11 @@ public struct AppSettings: Codable, Sendable {
     public var filterBeta: Double = 0.007
     
     // Pinch / Click / Drag settings
-    public var pinchStartThreshold: Double = 0.22
-    public var pinchReleaseThreshold: Double = 0.30
+    public var pinchStartThreshold: Double = 0.15
+    public var pinchReleaseThreshold: Double = 0.22
     public var clickMaxDuration: Double = 0.35
     public var dragHoldDelay: Double = 0.35
-    public var clickCooldown: Double = 0.25
+    public var clickCooldown: Double = 0.20
     
     // 4-Finger Swipe settings
     public var swipeMinDisplacement: Double = 0.09
@@ -46,6 +46,10 @@ public struct AppSettings: Codable, Sendable {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
               var settings = try? JSONDecoder().decode(AppSettings.self, from: data) else {
             return AppSettings()
+        }
+        if settings.pinchStartThreshold > 0.16 {
+            settings.pinchStartThreshold = 0.15
+            settings.pinchReleaseThreshold = 0.22
         }
         if settings.swipeMaxDuration < 0.60 {
             settings.swipeMaxDuration = 0.85
