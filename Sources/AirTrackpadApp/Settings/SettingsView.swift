@@ -64,6 +64,7 @@ public struct SettingsView: View {
                     Toggle("Mirror Webcam Horizontally", isOn: $settings.mirrorsHorizontal)
                     Toggle("Show Camera Video Feed in Debug HUD", isOn: $settings.showCameraFeed)
                     Toggle("Show FPS & Latency in Debug HUD", isOn: $settings.showPerformanceMetrics)
+                    Toggle("Keep Debug HUD Always on Top (Floating)", isOn: $settings.isAlwaysOnTop)
                 }
             }
             .padding()
@@ -152,6 +153,7 @@ public struct SettingsView: View {
         .onAppear {
             settings.showCameraFeed = appState.showCameraFeed
             settings.showPerformanceMetrics = appState.showPerformanceMetrics
+            settings.isAlwaysOnTop = appState.isAlwaysOnTop
         }
         .onChange(of: settings.showCameraFeed) { newValue in
             appState.showCameraFeed = newValue
@@ -159,6 +161,10 @@ public struct SettingsView: View {
         }
         .onChange(of: settings.showPerformanceMetrics) { newValue in
             appState.showPerformanceMetrics = newValue
+            settings.save()
+        }
+        .onChange(of: settings.isAlwaysOnTop) { newValue in
+            appState.isAlwaysOnTop = newValue
             settings.save()
         }
         .onDisappear {

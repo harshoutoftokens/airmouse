@@ -33,6 +33,7 @@ public struct AppSettings: Codable, Sendable {
     public var mirrorsHorizontal: Bool = true
     public var showCameraFeed: Bool = false
     public var showPerformanceMetrics: Bool = true
+    public var isAlwaysOnTop: Bool = false
     
     // Calibration bounds
     public var calibMinX: Double = 0.15
