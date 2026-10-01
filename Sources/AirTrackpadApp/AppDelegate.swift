@@ -86,8 +86,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             window.title = "AirTrackpad — Live Debug HUD"
             window.contentView = NSHostingView(rootView: contentView)
             window.isReleasedWhenClosed = false
-            window.level = .floating
+            window.level = appState.isAlwaysOnTop ? .floating : .normal
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             hudWindow = window
+            
+            appState.onWindowLevelChange = { [weak window] isTop in
+                window?.level = isTop ? .floating : .normal
+            }
         }
         hudWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

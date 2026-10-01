@@ -32,6 +32,18 @@ public final class AppState: ObservableObject {
             }
         }
     }
+    @Published public var isAlwaysOnTop: Bool = AppSettings.load().isAlwaysOnTop {
+        didSet {
+            var settings = AppSettings.load()
+            if settings.isAlwaysOnTop != isAlwaysOnTop {
+                settings.isAlwaysOnTop = isAlwaysOnTop
+                settings.save()
+            }
+            onWindowLevelChange?(isAlwaysOnTop)
+        }
+    }
+    
+    public var onWindowLevelChange: ((Bool) -> Void)?
     
     public init() {}
 }

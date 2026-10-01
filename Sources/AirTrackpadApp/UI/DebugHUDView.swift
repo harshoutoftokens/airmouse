@@ -21,6 +21,32 @@ public struct DebugHUDView: View {
                 
                 Spacer()
                 
+                // Always-On-Top / Floating Window Toggle
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        appState.isAlwaysOnTop.toggle()
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: appState.isAlwaysOnTop ? "pin.fill" : "pin.slash")
+                            .font(.system(size: 11))
+                        Text(appState.isAlwaysOnTop ? "Pinned" : "Normal")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    }
+                    .frame(width: 84, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(appState.isAlwaysOnTop ? Color.orange.opacity(0.2) : Color.white.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(appState.isAlwaysOnTop ? Color.orange.opacity(0.5) : Color.white.opacity(0.18), lineWidth: 1)
+                    )
+                    .foregroundColor(appState.isAlwaysOnTop ? .orange : .white.opacity(0.75))
+                }
+                .buttonStyle(.plain)
+                .help(appState.isAlwaysOnTop ? "Window is floating above other apps. Click to make it a normal window (allowing other active apps in front)." : "Window behaves as a normal window (does not overlay active apps). Click to pin on top.")
+                
                 // Camera Output Toggle Button with strictly FIXED geometry
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
