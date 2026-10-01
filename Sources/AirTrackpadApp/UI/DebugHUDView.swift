@@ -11,20 +11,83 @@ public struct DebugHUDView: View {
     public var body: some View {
         VStack(spacing: 0) {
             // Header Bar
-            HStack {
+            HStack(spacing: 12) {
                 Circle()
                     .fill(appState.isRunning ? Color.green : Color.red)
                     .frame(width: 10, height: 10)
                 Text("AirTrackpad Debug HUD")
                     .font(.headline)
                     .foregroundColor(.white)
+                
                 Spacer()
-                Text(String(format: "%.1f FPS", appState.fps))
-                    .font(.system(.subheadline, design: .monospaced))
-                    .foregroundColor(.green)
-                Text(String(format: "%.1f ms", appState.latencyMs))
-                    .font(.system(.subheadline, design: .monospaced))
-                    .foregroundColor(.cyan)
+                
+                // Camera Output Toggle Button with strictly FIXED geometry
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        appState.showCameraFeed.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: appState.showCameraFeed ? "video.fill" : "video.slash.fill")
+                            .font(.system(size: 11))
+                        Text(appState.showCameraFeed ? "Camera On" : "Camera Off")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    }
+                    .frame(width: 116, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(appState.showCameraFeed ? Color.green.opacity(0.18) : Color.white.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(appState.showCameraFeed ? Color.green.opacity(0.5) : Color.white.opacity(0.18), lineWidth: 1)
+                    )
+                    .foregroundColor(appState.showCameraFeed ? .green : .white.opacity(0.75))
+                }
+                .buttonStyle(.plain)
+                .help(appState.showCameraFeed ? "Switch to minimal black screen (hide face/camera)" : "Show camera video feed")
+                
+                if appState.showPerformanceMetrics {
+                    Divider()
+                        .frame(height: 16)
+                        .background(Color.white.opacity(0.2))
+                    
+                    // Fixed-width performance cluster: values never push neighboring buttons
+                    HStack(spacing: 8) {
+                        Text(String(format: "%4.1f FPS", appState.fps))
+                            .font(.system(.subheadline, design: .monospaced))
+                            .monospacedDigit()
+                            .foregroundColor(.green)
+                            .frame(width: 76, alignment: .trailing)
+                        
+                        Text(String(format: "%4.1f ms", appState.latencyMs))
+                            .font(.system(.subheadline, design: .monospaced))
+                            .monospacedDigit()
+                            .foregroundColor(.cyan)
+                            .frame(width: 72, alignment: .trailing)
+                    }
+                    .frame(width: 156, alignment: .trailing)
+                    .contentShape(Rectangle())
+                    .help("Live engine performance (FPS & processing latency). Click to hide.")
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            appState.showPerformanceMetrics.toggle()
+                        }
+                    }
+                } else {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            appState.showPerformanceMetrics = true
+                        }
+                    }) {
+                        Image(systemName: "gauge.with.dots.needle.33percent")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .frame(width: 24, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show FPS & latency metrics")
+                }
             }
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
@@ -57,9 +120,9 @@ public struct DebugHUDView: View {
             
             // Viewport & Skeleton Overlay
             ZStack {
-                Color.black.opacity(0.85)
+                Color.black
                 
-                if let cgImg = appState.currentFrameImage {
+                if appState.showCameraFeed, let cgImg = appState.currentFrameImage {
                     Image(decorative: cgImg, scale: 1.0)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -68,6 +131,52 @@ public struct DebugHUDView: View {
                 }
                 
                 SkeletonOverlayView(observations: appState.observations)
+                
+                // Top controls overlay inside Viewport
+                VStack {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(appState.showCameraFeed ? Color.green : Color.gray)
+                                .frame(width: 6, height: 6)
+                            Text(appState.showCameraFeed ? "Feed: Camera" : "Feed: Black Screen")
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.75))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.65))
+                        .cornerRadius(6)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                appState.showCameraFeed.toggle()
+                            }
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: appState.showCameraFeed ? "video.slash" : "video")
+                                    .font(.system(size: 10))
+                                Text(appState.showCameraFeed ? "Black Screen" : "Show Camera")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.65))
+                            .cornerRadius(6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                            .foregroundColor(.white.opacity(0.85))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(10)
+                    
+                    Spacer()
+                }
                 
                 if appState.observations.isEmpty {
                     VStack(spacing: 8) {

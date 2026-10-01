@@ -14,6 +14,24 @@ public final class AppState: ObservableObject {
     @Published public var isAccessibilityGranted: Bool = false
     @Published public var currentFrameImage: CGImage?
     @Published public var cursorSpeedMultiplier: Double = 1.0
+    @Published public var showCameraFeed: Bool = AppSettings.load().showCameraFeed {
+        didSet {
+            var settings = AppSettings.load()
+            if settings.showCameraFeed != showCameraFeed {
+                settings.showCameraFeed = showCameraFeed
+                settings.save()
+            }
+        }
+    }
+    @Published public var showPerformanceMetrics: Bool = AppSettings.load().showPerformanceMetrics {
+        didSet {
+            var settings = AppSettings.load()
+            if settings.showPerformanceMetrics != showPerformanceMetrics {
+                settings.showPerformanceMetrics = showPerformanceMetrics
+                settings.save()
+            }
+        }
+    }
     
     public init() {}
 }

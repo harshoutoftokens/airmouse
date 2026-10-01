@@ -17,7 +17,8 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
     private var lastFrameTime: TimeInterval = 0.0
     private var frameCount: Int = 0
     private var lastTrackedWrist: Landmark?
-    
+    private var isCameraFeedEnabled: Bool = false
+        
     public init(appState: AppState, backend: InputBackendProtocol = CGEventInputBackend()) {
         self.appState = appState
         self.actionRouter = ActionRouter(backend: backend)
@@ -47,6 +48,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         
         cursorEngine.deadZonePixels = settings.cursorDeadzonePixels
         cursorEngine.filter.updateCoefficients(minCutoff: settings.filterMinCutoff, beta: settings.filterBeta)
+        self.isCameraFeedEnabled = settings.showCameraFeed
     }
     
     @MainActor
@@ -172,20 +174,25 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             }()
             
             var previewImage: CGImage?
-            if self.frameCount % 2 == 0 {
+            if self.isCameraFeedEnabled && self.frameCount % 2 == 0 {
                 let ci = CIImage(cvPixelBuffer: pixelBuffer)
                 previewImage = self.ciContext.createCGImage(ci, from: ci.extent)
             }
             
             Task { @MainActor in
+                self.isCameraFeedEnabled = self.appState.showCameraFeed
                 self.updateFPS(timestamp: timestamp)
                 self.appState.latencyMs = latencyMs
                 self.appState.observations = observations
                 self.appState.metrics = metrics
                 self.appState.activeGestureName = currentGestureName
                 self.appState.cursorSpeedMultiplier = activeSpeedMultiplier
-                if let img = previewImage {
-                    self.appState.currentFrameImage = img
+                if self.appState.showCameraFeed {
+                    if let img = previewImage {
+                        self.appState.currentFrameImage = img
+                    }
+                } else if self.appState.currentFrameImage != nil {
+                    self.appState.currentFrameImage = nil
                 }
             }
         } catch {

@@ -2,11 +2,14 @@ import SwiftUI
 import AirTrackpadCore
 
 public struct SettingsView: View {
+    @ObservedObject public var appState: AppState
     @State private var settings = AppSettings.load()
     @State private var cameraGranted = PermissionsHelper.isCameraAuthorized
     @State private var accessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
     
-    public init() {}
+    public init(appState: AppState = AppState()) {
+        self.appState = appState
+    }
     
     public var body: some View {
         TabView {
@@ -59,6 +62,8 @@ public struct SettingsView: View {
                         Text("60 FPS").tag(Int32(60))
                     }
                     Toggle("Mirror Webcam Horizontally", isOn: $settings.mirrorsHorizontal)
+                    Toggle("Show Camera Video Feed in Debug HUD", isOn: $settings.showCameraFeed)
+                    Toggle("Show FPS & Latency in Debug HUD", isOn: $settings.showPerformanceMetrics)
                 }
             }
             .padding()
@@ -144,6 +149,18 @@ public struct SettingsView: View {
             }
         }
         .frame(width: 580, height: 420)
+        .onAppear {
+            settings.showCameraFeed = appState.showCameraFeed
+            settings.showPerformanceMetrics = appState.showPerformanceMetrics
+        }
+        .onChange(of: settings.showCameraFeed) { newValue in
+            appState.showCameraFeed = newValue
+            settings.save()
+        }
+        .onChange(of: settings.showPerformanceMetrics) { newValue in
+            appState.showPerformanceMetrics = newValue
+            settings.save()
+        }
         .onDisappear {
             settings.save()
         }

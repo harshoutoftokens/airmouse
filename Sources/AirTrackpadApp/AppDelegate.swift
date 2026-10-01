@@ -95,7 +95,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc public func showSettings() {
         if settingsWindow == nil {
-            let contentView = SettingsView()
+            let contentView = SettingsView(appState: appState)
             let window = NSWindow(
                 contentRect: NSRect(x: 150, y: 150, width: 580, height: 420),
                 styleMask: [.titled, .closable],

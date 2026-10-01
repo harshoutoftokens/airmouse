@@ -28,9 +28,11 @@ public struct AppSettings: Codable, Sendable {
     public var fiveFingerMaxSequenceDuration: Double = 1.20
     public var missionControlCooldown: Double = 0.60
     
-    // Camera settings
+    // Camera and display settings
     public var targetFPS: Int32 = 60
     public var mirrorsHorizontal: Bool = true
+    public var showCameraFeed: Bool = false
+    public var showPerformanceMetrics: Bool = true
     
     // Calibration bounds
     public var calibMinX: Double = 0.15
