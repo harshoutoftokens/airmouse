@@ -127,6 +127,35 @@ final class RegressionTests: XCTestCase {
         XCTAssertTrue(driver.events.clicks.isEmpty)
     }
 
+    // Live logs: quick clicks became two-frame drags because opening the fingers moves the
+    // knuckles past the drag threshold before the release is confirmed.
+    func testOpeningFingersDoNotTurnAClickIntoADrag() {
+        let driver = FrameDriver()
+        driver.feed(SyntheticHand(), frames: 8)
+        var pinched = SyntheticHand()
+        pinched.pinch = 0.06
+        // A ~0.3 s click with the slight drift of a hand held in the air…
+        driver.feed(pinched, frames: 9) { hand, i in hand.palm.x = 0.5 + 0.0015 * Double(i + 1) }
+        // …then the knuckles swing as the index extends.
+        driver.feed(pinched, frames: 5) { hand, i in
+            hand.pinch = [0.14, 0.27, 0.40, 0.50, 0.55][i]
+            hand.palm.x = 0.5135 + 0.012 * Double(i + 1)
+        }
+        XCTAssertEqual(driver.events.count(.leftMouseDown), 0)
+        XCTAssertEqual(driver.events.clicks, [1])
+    }
+
+    // …while a deliberate move with the pinch held still starts a drag.
+    func testMovingWhilePinchedStillDrags() {
+        let driver = FrameDriver()
+        driver.feed(SyntheticHand(), frames: 8)
+        var pinched = SyntheticHand()
+        pinched.pinch = 0.06
+        driver.feed(pinched, frames: 9)
+        driver.feed(pinched, frames: 6) { hand, i in hand.palm.x = 0.5 + 0.012 * Double(i + 1) }
+        XCTAssertEqual(driver.events.count(.leftMouseDown), 1)
+    }
+
     // A pinch landing stops scroll momentum, like touching a trackpad.
     func testPinchPressCancelsMomentum() {
         let driver = FrameDriver()

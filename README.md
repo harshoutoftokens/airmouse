@@ -82,7 +82,7 @@ Requirements: macOS 13+ on Apple Silicon, Xcode 16+ (Swift 6).
 ```bash
 make setup-cert   # once: local signing identity so permissions survive rebuilds
 make run          # release build → AirTrackpad.app → launch
-make test         # 117 headless unit / replay / regression tests
+make test         # 119 headless unit / replay / regression tests
 make logs         # live log of swipes, clicks, drags and desktop-switch results
 ```
 

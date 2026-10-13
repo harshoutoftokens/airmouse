@@ -351,6 +351,17 @@ public final class GestureStateMachine: @unchecked Sendable {
             currentState = pose == .pointing ? .pointing : .idle
             return
         }
+        // The knuckles move while the fingers finish closing and again as they open; neither is
+        // the hand moving. Re-base while the pinch is still closing, and never turn a pinch that
+        // is opening into a drag: that's the release of a click (live logs showed quick clicks
+        // becoming two-frame drags).
+        if t - pressTime < 0.15 && leftPinch.closingSpeed > 0.5 {
+            pressAnchor = sample.filteredAnchor
+            return
+        }
+        let opening = leftPinch.closingSpeed < -0.5
+            || leftPinch.releaseOnsetTime.map { t - $0 < 0.2 } == true
+        if opening { return }
         let moved = hypot(Double(sample.filteredAnchor.x - pressAnchor.x), Double(sample.filteredAnchor.y - pressAnchor.y)) / max(sample.scale, 0.02)
         if moved >= config.dragStartDistance || t - pressTime >= config.dragHoldDelay {
             events.append(.leftMouseDown)
