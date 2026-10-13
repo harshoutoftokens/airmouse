@@ -1,15 +1,28 @@
 {
   "frames" : [
     {
-      "gestureState" : "4F_SWIPE_RIGHT",
+      "gestureState" : "four_finger_swipe_right_001",
       "metrics" : {
         "centroid" : {
           "confidence" : 1,
-          "x" : 0.3,
-          "y" : 0.5,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
           "z" : 0
         },
         "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
         "fingerStates" : {
           "index" : "extended",
           "little" : "extended",
@@ -17,55 +30,62 @@
           "ring" : "extended",
           "thumb" : "folded"
         },
-        "handScale" : 0.2,
-        "pinchDistance" : 0.5,
-        "spread" : 0.5,
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
         "timestamp" : 1
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "CF227E1C-BE70-42AF-B230-1CCB2F367286",
+        "id" : "00000000-0000-0000-0000-000000000000",
         "joints" : {
-          "indexTip" : {
-            "confidence" : 1,
-            "x" : 0.3,
-            "y" : 0.5,
-            "z" : 0
-          },
           "middleMCP" : {
             "confidence" : 1,
-            "x" : 0.3,
-            "y" : 0.3,
-            "z" : 0
-          },
-          "thumbTip" : {
-            "confidence" : 1,
-            "x" : 0.19999999999999998,
-            "y" : 0.5,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
             "z" : 0
           },
           "wrist" : {
             "confidence" : 1,
-            "x" : 0.3,
-            "y" : 0.1,
+            "x" : 0.35,
+            "y" : 0.325,
             "z" : 0
           }
         },
+        "synthesizedJoints" : [
+
+        ],
         "timestamp" : 1
       },
       "timestamp" : 1
     },
     {
-      "gestureState" : "4F_SWIPE_RIGHT",
+      "gestureState" : "four_finger_swipe_right_001",
       "metrics" : {
         "centroid" : {
           "confidence" : 1,
-          "x" : 0.33999999999999997,
-          "y" : 0.5,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
           "z" : 0
         },
         "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
         "fingerStates" : {
           "index" : "extended",
           "little" : "extended",
@@ -73,55 +93,692 @@
           "ring" : "extended",
           "thumb" : "folded"
         },
-        "handScale" : 0.2,
-        "pinchDistance" : 0.5,
-        "spread" : 0.5,
-        "timestamp" : 1.03
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.0333333333333334
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "EA60ED3D-1F63-42A1-B5EA-F930F299B978",
+        "id" : "00000000-0000-0000-0000-000000000001",
         "joints" : {
-          "indexTip" : {
-            "confidence" : 1,
-            "x" : 0.33999999999999997,
-            "y" : 0.5,
-            "z" : 0
-          },
           "middleMCP" : {
             "confidence" : 1,
-            "x" : 0.33999999999999997,
-            "y" : 0.3,
-            "z" : 0
-          },
-          "thumbTip" : {
-            "confidence" : 1,
-            "x" : 0.23999999999999996,
-            "y" : 0.5,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
             "z" : 0
           },
           "wrist" : {
             "confidence" : 1,
-            "x" : 0.33999999999999997,
-            "y" : 0.1,
+            "x" : 0.35,
+            "y" : 0.325,
             "z" : 0
           }
         },
-        "timestamp" : 1.03
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.0333333333333334
       },
-      "timestamp" : 1.03
+      "timestamp" : 1.0333333333333334
     },
     {
-      "gestureState" : "4F_SWIPE_RIGHT",
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.0666666666666669
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000002",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.0666666666666669
+      },
+      "timestamp" : 1.0666666666666669
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.1000000000000003
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000003",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.1000000000000003
+      },
+      "timestamp" : 1.1000000000000003
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.1333333333333337
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000004",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.1333333333333337
+      },
+      "timestamp" : 1.1333333333333337
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.1666666666666672
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000005",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.1666666666666672
+      },
+      "timestamp" : 1.1666666666666672
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.2000000000000006
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000006",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.2000000000000006
+      },
+      "timestamp" : 1.2000000000000006
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.233333333333334
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000007",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.233333333333334
+      },
+      "timestamp" : 1.233333333333334
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.2666666666666675
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000008",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.2666666666666675
+      },
+      "timestamp" : 1.2666666666666675
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.300000000000001
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000009",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.300000000000001
+      },
+      "timestamp" : 1.300000000000001
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.3333333333333344
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000010",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.3333333333333344
+      },
+      "timestamp" : 1.3333333333333344
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.35,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.3666666666666678
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000011",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.35,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.3666666666666678
+      },
+      "timestamp" : 1.3666666666666678
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
       "metrics" : {
         "centroid" : {
           "confidence" : 1,
           "x" : 0.38,
-          "y" : 0.5,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.38,
+          "y" : 0.47500000000000003,
           "z" : 0
         },
         "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
         "fingerStates" : {
           "index" : "extended",
           "little" : "extended",
@@ -129,55 +786,62 @@
           "ring" : "extended",
           "thumb" : "folded"
         },
-        "handScale" : 0.2,
-        "pinchDistance" : 0.5,
-        "spread" : 0.5,
-        "timestamp" : 1.06
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.4000000000000012
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "FE6DACC3-8D86-4AB5-9CAF-1EF9EDCD4399",
+        "id" : "00000000-0000-0000-0000-000000000012",
         "joints" : {
-          "indexTip" : {
-            "confidence" : 1,
-            "x" : 0.38,
-            "y" : 0.5,
-            "z" : 0
-          },
           "middleMCP" : {
             "confidence" : 1,
             "x" : 0.38,
-            "y" : 0.3,
-            "z" : 0
-          },
-          "thumbTip" : {
-            "confidence" : 1,
-            "x" : 0.28,
-            "y" : 0.5,
+            "y" : 0.47500000000000003,
             "z" : 0
           },
           "wrist" : {
             "confidence" : 1,
             "x" : 0.38,
-            "y" : 0.1,
+            "y" : 0.325,
             "z" : 0
           }
         },
-        "timestamp" : 1.06
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.4000000000000012
       },
-      "timestamp" : 1.06
+      "timestamp" : 1.4000000000000012
     },
     {
-      "gestureState" : "4F_SWIPE_RIGHT",
+      "gestureState" : "four_finger_swipe_right_001",
       "metrics" : {
         "centroid" : {
           "confidence" : 1,
-          "x" : 0.42,
-          "y" : 0.5,
+          "x" : 0.41,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.41,
+          "y" : 0.47500000000000003,
           "z" : 0
         },
         "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
         "fingerStates" : {
           "index" : "extended",
           "little" : "extended",
@@ -185,55 +849,62 @@
           "ring" : "extended",
           "thumb" : "folded"
         },
-        "handScale" : 0.2,
-        "pinchDistance" : 0.5,
-        "spread" : 0.5,
-        "timestamp" : 1.09
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.4333333333333347
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "67DA04FD-6A13-4F50-AE7A-DE2C4A7CBBBE",
+        "id" : "00000000-0000-0000-0000-000000000013",
         "joints" : {
-          "indexTip" : {
-            "confidence" : 1,
-            "x" : 0.42,
-            "y" : 0.5,
-            "z" : 0
-          },
           "middleMCP" : {
             "confidence" : 1,
-            "x" : 0.42,
-            "y" : 0.3,
-            "z" : 0
-          },
-          "thumbTip" : {
-            "confidence" : 1,
-            "x" : 0.31999999999999995,
-            "y" : 0.5,
+            "x" : 0.41,
+            "y" : 0.47500000000000003,
             "z" : 0
           },
           "wrist" : {
             "confidence" : 1,
-            "x" : 0.42,
-            "y" : 0.1,
+            "x" : 0.41,
+            "y" : 0.325,
             "z" : 0
           }
         },
-        "timestamp" : 1.09
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.4333333333333347
       },
-      "timestamp" : 1.09
+      "timestamp" : 1.4333333333333347
     },
     {
-      "gestureState" : "4F_SWIPE_RIGHT",
+      "gestureState" : "four_finger_swipe_right_001",
       "metrics" : {
         "centroid" : {
           "confidence" : 1,
-          "x" : 0.45999999999999996,
-          "y" : 0.5,
+          "x" : 0.43999999999999995,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.43999999999999995,
+          "y" : 0.47500000000000003,
           "z" : 0
         },
         "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
         "fingerStates" : {
           "index" : "extended",
           "little" : "extended",
@@ -241,47 +912,671 @@
           "ring" : "extended",
           "thumb" : "folded"
         },
-        "handScale" : 0.2,
-        "pinchDistance" : 0.5,
-        "spread" : 0.5,
-        "timestamp" : 1.12
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.4666666666666681
       },
       "observation" : {
         "chirality" : "right",
         "confidence" : 0.95,
-        "id" : "50BCB003-F6C5-4DB3-9CFB-8DB470DB4058",
+        "id" : "00000000-0000-0000-0000-000000000014",
         "joints" : {
-          "indexTip" : {
-            "confidence" : 1,
-            "x" : 0.45999999999999996,
-            "y" : 0.5,
-            "z" : 0
-          },
           "middleMCP" : {
             "confidence" : 1,
-            "x" : 0.45999999999999996,
-            "y" : 0.3,
-            "z" : 0
-          },
-          "thumbTip" : {
-            "confidence" : 1,
-            "x" : 0.36,
-            "y" : 0.5,
+            "x" : 0.43999999999999995,
+            "y" : 0.47500000000000003,
             "z" : 0
           },
           "wrist" : {
             "confidence" : 1,
-            "x" : 0.45999999999999996,
-            "y" : 0.1,
+            "x" : 0.43999999999999995,
+            "y" : 0.325,
             "z" : 0
           }
         },
-        "timestamp" : 1.12
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.4666666666666681
       },
-      "timestamp" : 1.12
+      "timestamp" : 1.4666666666666681
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.47,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.47,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.5000000000000016
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000015",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.47,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.47,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.5000000000000016
+      },
+      "timestamp" : 1.5000000000000016
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.533333333333335
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000016",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.533333333333335
+      },
+      "timestamp" : 1.533333333333335
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.53,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.53,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.5666666666666684
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000017",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.53,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.53,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.5666666666666684
+      },
+      "timestamp" : 1.5666666666666684
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.5599999999999999,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.5599999999999999,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.6000000000000019
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000018",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.5599999999999999,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.5599999999999999,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.6000000000000019
+      },
+      "timestamp" : 1.6000000000000019
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.6333333333333353
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000019",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.6333333333333353
+      },
+      "timestamp" : 1.6333333333333353
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.6666666666666687
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000020",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.6666666666666687
+      },
+      "timestamp" : 1.6666666666666687
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.7000000000000022
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000021",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.7000000000000022
+      },
+      "timestamp" : 1.7000000000000022
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.7333333333333356
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000022",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.7333333333333356
+      },
+      "timestamp" : 1.7333333333333356
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.766666666666669
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000023",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.766666666666669
+      },
+      "timestamp" : 1.766666666666669
+    },
+    {
+      "gestureState" : "four_finger_swipe_right_001",
+      "metrics" : {
+        "centroid" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.4,
+          "z" : 0
+        },
+        "cursorAnchor" : {
+          "confidence" : 1,
+          "x" : 0.56,
+          "y" : 0.47500000000000003,
+          "z" : 0
+        },
+        "extendedFingerCount" : 4,
+        "fingerReach" : {
+          "index" : 0.8,
+          "little" : 0.8,
+          "middle" : 0.8,
+          "ring" : 0.8,
+          "thumb" : 0.3
+        },
+        "fingerStates" : {
+          "index" : "extended",
+          "little" : "extended",
+          "middle" : "extended",
+          "ring" : "extended",
+          "thumb" : "folded"
+        },
+        "handScale" : 0.15,
+        "middlePinchDistance" : 0.8,
+        "middlePinchTracked" : true,
+        "pinchDistance" : 0.6,
+        "pinchTracked" : true,
+        "spread" : 0.3,
+        "timestamp" : 1.8000000000000025
+      },
+      "observation" : {
+        "chirality" : "right",
+        "confidence" : 0.95,
+        "id" : "00000000-0000-0000-0000-000000000024",
+        "joints" : {
+          "middleMCP" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.47500000000000003,
+            "z" : 0
+          },
+          "wrist" : {
+            "confidence" : 1,
+            "x" : 0.56,
+            "y" : 0.325,
+            "z" : 0
+          }
+        },
+        "synthesizedJoints" : [
+
+        ],
+        "timestamp" : 1.8000000000000025
+      },
+      "timestamp" : 1.8000000000000025
     }
   ],
   "name" : "four_finger_swipe_right_001",
-  "recordedAt" : 812356876.539445,
-  "targetFPS" : 60
+  "recordedAt" : 811692800,
+  "targetFPS" : 30
 }

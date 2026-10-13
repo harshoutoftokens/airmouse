@@ -17,7 +17,7 @@ public struct ScreenMapper: Sendable {
         minX: Double = 0.15,
         maxX: Double = 0.85,
         minY: Double = 0.15,
-        maxY: Double = 0.85,
+        maxY: Double = 0.80,
         screenBounds: CGRect = CGRect(x: 0, y: 0, width: 1470, height: 956),
         sensitivity: Double = 1.0
     ) {
@@ -29,15 +29,9 @@ public struct ScreenMapper: Sendable {
         self.sensitivity = max(0.5, min(3.0, sensitivity))
     }
     
-    /// Updates screen bounds dynamically from the main screen.
+    /// Updates screen bounds dynamically from the main screen using Quartz coordinates.
     public mutating func updateScreenBounds() {
-        #if canImport(AppKit)
-        if let frame = NSScreen.main?.frame {
-            self.screenBounds = frame
-        } else {
-            self.screenBounds = CGDisplayBounds(CGMainDisplayID())
-        }
-        #endif
+        self.screenBounds = CGDisplayBounds(CGMainDisplayID())
     }
     
     /// Converts a normalized landmark (x, y in [0, 1]) to screen pixel coordinates.

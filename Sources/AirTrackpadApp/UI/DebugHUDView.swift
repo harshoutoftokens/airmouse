@@ -3,151 +3,24 @@ import AirTrackpadCore
 
 public struct DebugHUDView: View {
     @ObservedObject public var appState: AppState
-    
-    public init(appState: AppState) {
+    private let onToggleRecording: (Bool) -> Void
+
+    public init(appState: AppState, onToggleRecording: @escaping (Bool) -> Void = { _ in }) {
         self.appState = appState
+        self.onToggleRecording = onToggleRecording
     }
-    
+
     public var body: some View {
         VStack(spacing: 0) {
-            // Header Bar
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(appState.isRunning ? Color.green : Color.red)
-                    .frame(width: 10, height: 10)
-                Text("AirTrackpad Debug HUD")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                // Always-On-Top / Floating Window Toggle
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        appState.isAlwaysOnTop.toggle()
-                    }
-                }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: appState.isAlwaysOnTop ? "pin.fill" : "pin.slash")
-                            .font(.system(size: 11))
-                        Text(appState.isAlwaysOnTop ? "Pinned" : "Normal")
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    }
-                    .frame(width: 84, height: 26)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(appState.isAlwaysOnTop ? Color.orange.opacity(0.2) : Color.white.opacity(0.08))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(appState.isAlwaysOnTop ? Color.orange.opacity(0.5) : Color.white.opacity(0.18), lineWidth: 1)
-                    )
-                    .foregroundColor(appState.isAlwaysOnTop ? .orange : .white.opacity(0.75))
-                }
-                .buttonStyle(.plain)
-                .help(appState.isAlwaysOnTop ? "Window is floating above other apps. Click to make it a normal window (allowing other active apps in front)." : "Window behaves as a normal window (does not overlay active apps). Click to pin on top.")
-                
-                // Camera Output Toggle Button with strictly FIXED geometry
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        appState.showCameraFeed.toggle()
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: appState.showCameraFeed ? "video.fill" : "video.slash.fill")
-                            .font(.system(size: 11))
-                        Text(appState.showCameraFeed ? "Camera On" : "Camera Off")
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    }
-                    .frame(width: 116, height: 26)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(appState.showCameraFeed ? Color.green.opacity(0.18) : Color.white.opacity(0.08))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(appState.showCameraFeed ? Color.green.opacity(0.5) : Color.white.opacity(0.18), lineWidth: 1)
-                    )
-                    .foregroundColor(appState.showCameraFeed ? .green : .white.opacity(0.75))
-                }
-                .buttonStyle(.plain)
-                .help(appState.showCameraFeed ? "Switch to minimal black screen (hide face/camera)" : "Show camera video feed")
-                
-                if appState.showPerformanceMetrics {
-                    Divider()
-                        .frame(height: 16)
-                        .background(Color.white.opacity(0.2))
-                    
-                    // Fixed-width performance cluster: values never push neighboring buttons
-                    HStack(spacing: 8) {
-                        Text(String(format: "%4.1f FPS", appState.fps))
-                            .font(.system(.subheadline, design: .monospaced))
-                            .monospacedDigit()
-                            .foregroundColor(.green)
-                            .frame(width: 76, alignment: .trailing)
-                        
-                        Text(String(format: "%4.1f ms", appState.latencyMs))
-                            .font(.system(.subheadline, design: .monospaced))
-                            .monospacedDigit()
-                            .foregroundColor(.cyan)
-                            .frame(width: 72, alignment: .trailing)
-                    }
-                    .frame(width: 156, alignment: .trailing)
-                    .contentShape(Rectangle())
-                    .help("Live engine performance (FPS & processing latency). Click to hide.")
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            appState.showPerformanceMetrics.toggle()
-                        }
-                    }
-                } else {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            appState.showPerformanceMetrics = true
-                        }
-                    }) {
-                        Image(systemName: "gauge.with.dots.needle.33percent")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .frame(width: 24, height: 26)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Show FPS & latency metrics")
-                }
-            }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
-            
-            // Accessibility Warning Banner
+            header
+
             if !appState.isAccessibilityGranted {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.yellow)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Accessibility Permission Required")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                        Text("macOS requires Accessibility permission to execute clicks, window drags, and Space swipes.")
-                            .font(.system(size: 11))
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    Spacer()
-                    Button("Grant Permission") {
-                        PermissionsHelper.promptAccessibilityPermission()
-                        PermissionsHelper.openAccessibilitySettings()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.red.opacity(0.85))
+                accessibilityBanner
             }
-            
-            // Viewport & Skeleton Overlay
+
             ZStack {
                 Color.black
-                
+
                 if appState.showCameraFeed, let cgImg = appState.currentFrameImage {
                     Image(decorative: cgImg, scale: 1.0)
                         .resizable()
@@ -155,103 +28,271 @@ public struct DebugHUDView: View {
                         .scaleEffect(x: -1, y: 1)
                         .opacity(0.6)
                 }
-                
+
                 SkeletonOverlayView(observations: appState.observations)
-                
-                // Top controls overlay inside Viewport
+
                 VStack {
-                    HStack {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(appState.showCameraFeed ? Color.green : Color.gray)
-                                .frame(width: 6, height: 6)
-                            Text(appState.showCameraFeed ? "Feed: Camera" : "Feed: Black Screen")
-                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.75))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.65))
-                        .cornerRadius(6)
-                        
+                    HStack(alignment: .top) {
+                        chip(icon: appState.showCameraFeed ? "video.fill" : "video.slash",
+                             text: appState.cameraDescription.isEmpty ? "Camera" : appState.cameraDescription)
                         Spacer()
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                appState.showCameraFeed.toggle()
-                            }
-                        }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: appState.showCameraFeed ? "video.slash" : "video")
-                                    .font(.system(size: 10))
-                                Text(appState.showCameraFeed ? "Black Screen" : "Show Camera")
-                                    .font(.system(size: 10, weight: .semibold))
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.65))
-                            .cornerRadius(6)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                            .foregroundColor(.white.opacity(0.85))
+                        if !appState.lastAction.isEmpty, let date = appState.lastActionDate,
+                           Date().timeIntervalSince(date) < 3 {
+                            Text(appState.lastAction)
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.accentColor.opacity(0.85))
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                                .transition(.opacity)
                         }
-                        .buttonStyle(.plain)
                     }
                     .padding(10)
-                    
                     Spacer()
+                    gestureGuide
+                        .padding(.bottom, 8)
                 }
-                
+
                 if appState.observations.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "hand.raised.slash")
                             .font(.system(size: 40))
                             .foregroundColor(.gray)
-                        Text("No Hand Detected")
+                        Text(appState.isRunning ? "No Hand Detected" : "Tracking Stopped")
                             .foregroundColor(.gray)
                             .font(.callout)
                     }
                 }
             }
-            .frame(minWidth: 640, minHeight: 400)
-            
-            // Metrics Dashboard Footer
-            HStack(spacing: 24) {
-                MetricCard(
-                    title: "EXTENDED",
-                    value: "\(appState.metrics?.extendedFingerCount ?? 0)",
-                    color: .green
-                )
-                
-                MetricCard(
-                    title: "PINCH DIST",
-                    value: String(format: "%.2f", appState.metrics?.pinchDistance ?? 0.0),
-                    color: .orange
-                )
-                
-                MetricCard(
-                    title: "SPREAD (σ)",
-                    value: String(format: "%.2f", appState.metrics?.spread ?? 0.0),
-                    color: .purple
-                )
-                
-                MetricCard(
-                    title: "SPEED",
-                    value: appState.cursorSpeedMultiplier < 0.99 ? String(format: "%.2fx SLOW", appState.cursorSpeedMultiplier) : "1.0x",
-                    color: appState.cursorSpeedMultiplier < 0.99 ? .cyan : .green
-                )
-                
-                MetricCard(
-                    title: "ACTIVE STATE",
-                    value: appState.activeGestureName,
-                    color: .cyan
-                )
+
+            if let metrics = appState.metrics {
+                fingerBar(metrics)
             }
-            .padding()
-            .background(Color(NSColor.underPageBackgroundColor))
+
+            footer
         }
+    }
+
+    // MARK: - Sections
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(appState.isRunning ? (appState.isPaused ? Color.orange : Color.green) : Color.red)
+                .frame(width: 10, height: 10)
+            Text("AirTrackpad")
+                .font(.headline)
+            Text(appState.cursorMode == .relative ? "Trackpad mode" : "Direct mode")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            toggleButton(
+                active: appState.isRecording,
+                icon: appState.isRecording ? "record.circle.fill" : "record.circle",
+                label: appState.isRecording ? "Recording" : "Record",
+                tint: .red,
+                width: 104
+            ) {
+                onToggleRecording(!appState.isRecording)
+            }
+            .help("Record hand-tracking data to a JSON file for offline tuning and tests.")
+
+            toggleButton(
+                active: appState.isAlwaysOnTop,
+                icon: appState.isAlwaysOnTop ? "pin.fill" : "pin.slash",
+                label: appState.isAlwaysOnTop ? "Pinned" : "Normal",
+                tint: .orange,
+                width: 84
+            ) {
+                appState.isAlwaysOnTop.toggle()
+            }
+            .help("Keep this window above other apps.")
+
+            toggleButton(
+                active: appState.showCameraFeed,
+                icon: appState.showCameraFeed ? "video.fill" : "video.slash.fill",
+                label: appState.showCameraFeed ? "Camera On" : "Camera Off",
+                tint: .green,
+                width: 112
+            ) {
+                appState.showCameraFeed.toggle()
+            }
+            .help("Show the camera image behind the skeleton.")
+
+            if appState.showPerformanceMetrics {
+                HStack(spacing: 8) {
+                    Text(String(format: "%4.1f FPS", appState.fps))
+                        .foregroundColor(.green)
+                        .frame(width: 76, alignment: .trailing)
+                    Text(String(format: "%4.1f ms", appState.latencyMs))
+                        .foregroundColor(.cyan)
+                        .frame(width: 70, alignment: .trailing)
+                }
+                .font(.system(.subheadline, design: .monospaced))
+                .monospacedDigit()
+                .contentShape(Rectangle())
+                .help("Camera frame rate and Vision processing time. Click to hide.")
+                .onTapGesture { appState.showPerformanceMetrics.toggle() }
+            } else {
+                Button(action: { appState.showPerformanceMetrics = true }) {
+                    Image(systemName: "gauge.with.dots.needle.33percent")
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 26)
+                }
+                .buttonStyle(.plain)
+                .help("Show FPS & latency")
+            }
+        }
+        .padding()
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private var accessibilityBanner: some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Accessibility Permission Required")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                Text("macOS needs Accessibility access for AirTrackpad to move the pointer, click, scroll and switch desktops.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            Spacer()
+            Button("Grant Permission") {
+                PermissionsHelper.promptAccessibilityPermission()
+                PermissionsHelper.openAccessibilitySettings()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.red.opacity(0.85))
+    }
+
+    private var gestureGuide: some View {
+        HStack(spacing: 10) {
+            guideItem("☝", "Move")
+            guideItem("🤏", "Click · hold/move to drag")
+            guideItem("🤌", "Thumb+middle: right-click")
+            guideItem("✌", "Scroll")
+            guideItem("🖐↔", "Desktops")
+            guideItem("🖐🤏🖐", "Mission Control")
+            guideItem("✊", "Lift / reposition")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.black.opacity(0.55))
+        .cornerRadius(8)
+    }
+
+    private func guideItem(_ symbol: String, _ text: String) -> some View {
+        HStack(spacing: 3) {
+            Text(symbol).font(.system(size: 11))
+            Text(text)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+        }
+    }
+
+    private func fingerBar(_ metrics: HandMetrics) -> some View {
+        HStack(spacing: 8) {
+            Text("FINGERS:")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundColor(.secondary)
+            ForEach([Finger.thumb, .index, .middle, .ring, .little], id: \.self) { f in
+                let isUp = metrics.state(for: f).isUp
+                HStack(spacing: 3) {
+                    Text(f == .little ? "PINKY" : f.rawValue.uppercased())
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    Text(isUp ? "▲" : "▼")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(isUp ? Color.green.opacity(0.22) : Color.white.opacity(0.06))
+                .foregroundColor(isUp ? .green : .secondary)
+                .cornerRadius(4)
+            }
+            Spacer()
+            Text(String(format: "hand %.2f", metrics.handScale))
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.secondary)
+                .help("Hand size in the image. Very small values mean you're far from the camera.")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 5)
+        .background(Color(NSColor.windowBackgroundColor).opacity(0.7))
+    }
+
+    private var footer: some View {
+        HStack(spacing: 20) {
+            MetricCard(title: "POSE", value: poseLabel(appState.pose), color: .green)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("PINCH")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Text(String(format: "%.2f", appState.metrics?.pinchDistance ?? 0))
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.orange)
+                    ProgressView(value: appState.pinchProgress)
+                        .progressViewStyle(.linear)
+                        .tint(appState.pinchProgress >= 1 ? .accentColor : .orange)
+                        .frame(width: 60)
+                }
+            }
+            .frame(minWidth: 120, alignment: .leading)
+            MetricCard(title: "HAND SPEED", value: String(format: "%.1f /s", appState.handSpeed), color: .purple)
+            MetricCard(title: "STATE", value: appState.activeGestureName, color: .cyan)
+            Spacer()
+        }
+        .padding()
+        .background(Color(NSColor.underPageBackgroundColor))
+    }
+
+    // MARK: - Helpers
+
+    private func poseLabel(_ pose: HandPose) -> String {
+        switch pose {
+        case .none: return "—"
+        case .pointing: return "☝ Point"
+        case .scroll: return "✌ Scroll"
+        case .openHand: return "🖐 Open"
+        case .fist: return "✊ Fist"
+        case .other: return "· Other"
+        }
+    }
+
+    private func chip(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 10))
+            Text(text).font(.system(size: 10, weight: .medium, design: .monospaced))
+        }
+        .foregroundColor(.white.opacity(0.8))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.65))
+        .cornerRadius(6)
+    }
+
+    private func toggleButton(active: Bool, icon: String, label: String, tint: Color, width: CGFloat, action: @escaping () -> Void) -> some View {
+        Button(action: { withAnimation(.easeInOut(duration: 0.15)) { action() } }) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 11))
+                Text(label).font(.system(size: 11, weight: .semibold, design: .monospaced))
+            }
+            .frame(width: width, height: 26)
+            .background(RoundedRectangle(cornerRadius: 6).fill(active ? tint.opacity(0.2) : Color.white.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(active ? tint.opacity(0.5) : Color.white.opacity(0.18), lineWidth: 1))
+            .foregroundColor(active ? tint : .primary.opacity(0.75))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -259,7 +300,7 @@ struct MetricCard: View {
     let title: String
     let value: String
     let color: Color
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -268,7 +309,8 @@ struct MetricCard: View {
             Text(value)
                 .font(.system(size: 16, weight: .semibold, design: .monospaced))
                 .foregroundColor(color)
+                .lineLimit(1)
         }
-        .frame(minWidth: 100, alignment: .leading)
+        .frame(minWidth: 96, alignment: .leading)
     }
 }

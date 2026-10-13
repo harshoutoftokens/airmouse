@@ -3,525 +3,515 @@ import CoreGraphics
 
 public enum GestureState: String, Sendable, Codable {
     case idle = "IDLE"
-    case oneFingerCursor = "☝ ONE_FINGER_CURSOR"
-    case twoFingerDetected = "☝☝ TWO_FINGER_CURSOR"
-    case pinchCandidate = "🤏 PINCH_CANDIDATE"
+    case pointing = "☝ POINTING"
+    case scrolling = "✌ SCROLLING"
+    case pressed = "🤏 PRESSED"
     case dragging = "✊ DRAGGING"
-    case fourFingerCandidate = "🖐 FOUR_FINGER_SWIPE_CANDIDATE"
-    case fiveFingerOpen = "🖐 FIVE_FINGER_OPEN"
-    case fiveFingerContracting = "🤏 FIVE_FINGER_CONTRACTING"
-    case fiveFingerPinchLocked = "🔒 FIVE_FINGER_ARMED"
-    case fiveFingerExpanding = "🖐 FIVE_FINGER_EXPANDING"
+    case openHand = "🖐 OPEN HAND"
+    case missionControlGesture = "🤏 MISSION CONTROL"
     case cooldown = "⏱ COOLDOWN"
+    case handLost = "… HAND LOST"
 }
 
-private struct CentroidSample {
-    let point: Landmark
-    let timestamp: TimeInterval
+/// Live values for the HUD and logs.
+public struct GestureTelemetry: Sendable {
+    public var pose: HandPose = .none
+    public var rawPose: HandPose = .none
+    public var pinchDistance: Double = 1.0
+    public var pinchProgress: Double = 0.0
+    public var isPinched: Bool = false
+    public var handSpeed: Double = 0.0
+    public var handScale: Double = 0.0
+    public var swipeArmed: Bool = false
+    public var swipeRejection: String?
+    public var lastSwipe: SwipeStroke?
+    public var fiveFingerPhase: FiveFingerDetector.Phase = .idle
+
+    public init() {}
 }
 
-/// Formal temporal gesture state machine coordinating all 5 core gestures, priorities, and kinematics.
+/// Turns per-frame hand observations into abstract input events.
+///
+/// Priority, highest first: desktop swipe → Mission Control → pinch (click / drag / right
+/// click) → pose (pointing moves the pointer, ✌ scrolls). An active press or drag owns the
+/// hand exclusively until the pinch opens. The pointer only moves while pointing or dragging;
+/// every other shape is a "lift" that leaves it where it is.
 public final class GestureStateMachine: @unchecked Sendable {
     public private(set) var currentState: GestureState = .idle
-    
-    // Screen configuration
-    public var screenBounds: CGRect = CGRect(x: 0, y: 0, width: 1470, height: 956)
-    
-    // 2-Finger Pinch / Drag parameters
-    public var pinchStartThreshold: Double = 0.15
-    public var pinchReleaseThreshold: Double = 0.22
-    public var clickMaxDuration: TimeInterval = 0.35
-    public var dragHoldDelay: TimeInterval = 0.35
-    public var clickCooldownDuration: TimeInterval = 0.20
-    
-    // 4-Finger Fast Swipe parameters
-    public var swipeMinDisplacement: Double = 0.09
-    public var swipeMinVelocity: Double = 0.15
-    public var swipeMaxDuration: TimeInterval = 0.85
-    public var swipeDirectionRatio: Double = 1.05
-    public var swipeCooldownDuration: TimeInterval = 0.40
-    
-    // 5-Finger Mission Control parameters
-    public var fiveFingerOpenThreshold: Double = 0.40
-    public var fiveFingerPinchThreshold: Double = 0.25
-    public var fiveFingerMaxSequenceDuration: TimeInterval = 1.40
-    public var fiveFingerMinSequenceDuration: TimeInterval = 0.15
-    public var missionControlCooldownDuration: TimeInterval = 0.50
-    
-    // Timers & internal tracking
-    private var pinchStartTime: TimeInterval?
-    private var cooldownUntil: TimeInterval = 0.0
-    private var isDraggingActive: Bool = false
-    public private(set) var currentCursorPosition: CGPoint = .zero
-    private var dragAnchorPosition: CGPoint?
-    
-    // Stability debounce counters (prevent single-frame flicker)
-    private var consecutiveTwoFingerFrames: Int = 0
-    private var consecutiveOneFingerFrames: Int = 0
-    
-    // Swipe kinematic buffer & Point A -> Point B tracking
-    private var swipeAnchorPoint: Landmark?
-    private var swipeAnchorTime: TimeInterval?
-    private var centroidHistory: [CentroidSample] = []
-    
-    // 5-finger temporal state tracking
-    private var fiveFingerSequenceStartTime: TimeInterval?
-    private var previousSpread: Double = 0.0
-    
+    public private(set) var telemetry = GestureTelemetry()
+    public let cursor: CursorEngine
+    public private(set) var config = GestureConfig()
+
+    private var poseStabilizer = PoseStabilizer()
+    private var leftPinch = PinchDetector()
+    private var rightPinch = PinchDetector()
+    private var swipe = SwipeDetector()
+    private var fiveFinger = FiveFingerDetector()
+
+    private var handLostSince: TimeInterval?
+    /// When the current hand came into view (survives short dropouts).
+    private var handPresentSince: TimeInterval?
+    private var cooldownUntil: TimeInterval = 0
+    private var settleUntil: TimeInterval = 0
+    private var lastOpenHandTime: TimeInterval = -.infinity
+    private var previousPose: HandPose = .none
+
+    // Press / click bookkeeping
+    private var pressTime: TimeInterval = 0
+    private var pressAnchor: CGPoint = .zero
+    private var lastClickTime: TimeInterval = -.infinity
+    private var clickCount: Int = 0
+    /// Net pointer displacement since the last click (relative mode). Net, not path length, so
+    /// jitter and click rollback don't break double clicks.
+    private var netSinceClick = CGVector.zero
+    /// Pointer target at the last click (absolute mode).
+    private var lastClickTarget: CGPoint?
+
+    // Scroll bookkeeping
+    private var scrollBegan = false
+    private var scrollPoseFrames = 0
+    private var lastScrollAnchor: CGPoint?
+    private var lastScrollTime: TimeInterval?
+    private var railX: Double = 0
+    private var railY: Double = 0
+
     private let lock = NSLock()
-    
-    public init() {
-        if let loc = CGEvent(source: nil)?.location {
-            self.currentCursorPosition = loc
-        }
+
+    public init(cursor: CursorEngine = CursorEngine()) {
+        self.cursor = cursor
+        apply(GestureConfig())
     }
-    
-    public func reset() {
+
+    // MARK: - Configuration
+
+    public func apply(_ newConfig: GestureConfig) {
         lock.lock()
         defer { lock.unlock() }
-        currentState = .idle
-        pinchStartTime = nil
-        isDraggingActive = false
-        dragAnchorPosition = nil
-        consecutiveTwoFingerFrames = 0
-        consecutiveOneFingerFrames = 0
-        centroidHistory.removeAll()
-        swipeAnchorPoint = nil
-        swipeAnchorTime = nil
-        fiveFingerSequenceStartTime = nil
-        previousSpread = 0.0
+        config = newConfig
+        leftPinch.pressThreshold = newConfig.pinchPressThreshold
+        leftPinch.releaseThreshold = max(newConfig.pinchReleaseThreshold, newConfig.pinchPressThreshold + 0.03)
+        // The middle finger is longer and curls less neatly onto the thumb, so give the
+        // right-click pinch a little more room.
+        rightPinch.pressThreshold = newConfig.pinchPressThreshold + 0.02
+        rightPinch.releaseThreshold = max(newConfig.pinchReleaseThreshold + 0.02, rightPinch.pressThreshold + 0.03)
+        swipe.minDistance = newConfig.swipeMinDistance
+        swipe.minPeakSpeed = newConfig.swipeMinPeakSpeed
+        swipe.maxDuration = newConfig.swipeMaxDuration
+        swipe.oppositeDirectionGap = newConfig.swipeReturnLockout
+        fiveFinger.openThreshold = newConfig.fiveFingerOpenThreshold
+        fiveFinger.pinchThreshold = newConfig.fiveFingerPinchThreshold
+        fiveFinger.maxSequenceDuration = newConfig.fiveFingerMaxSequenceDuration
     }
-    
-    public func updateCursorPosition(_ point: CGPoint) {
+
+    // MARK: - Lifecycle
+
+    /// Returns to idle, emitting whatever is needed to leave the OS in a clean state.
+    @discardableResult
+    public func reset() -> [AbstractGestureEvent] {
         lock.lock()
         defer { lock.unlock() }
-        self.currentCursorPosition = point
+        return releaseEverything()
     }
-    
-    /// Processes a single frame of hand observation and metrics, returning any emitted abstract events.
+
+    /// Emergency fail-safe release.
+    public func emergencyRelease() -> [AbstractGestureEvent] {
+        reset()
+    }
+
+    // MARK: - Frame processing
+
     public func process(
         hand: HandObservation?,
         metrics: HandMetrics?,
-        timestamp: TimeInterval
+        timestamp t: TimeInterval
     ) -> [AbstractGestureEvent] {
         lock.lock()
         defer { lock.unlock() }
-        
-        var emittedEvents: [AbstractGestureEvent] = []
-        
-        // 1. Hand Lost Watchdog: If hand disappeared, immediately release mouse if held
-        guard let hand = hand, let metrics = metrics else {
-            if isDraggingActive {
-                isDraggingActive = false
-                emittedEvents.append(.leftMouseUp(at: currentCursorPosition))
-            }
-            currentState = .idle
-            pinchStartTime = nil
-            consecutiveOneFingerFrames = 0
-            consecutiveTwoFingerFrames = 0
-            centroidHistory.removeAll()
-            swipeAnchorPoint = nil
-            swipeAnchorTime = nil
-            fiveFingerSequenceStartTime = nil
-            return emittedEvents
+
+        guard hand != nil, let m = metrics else {
+            return handleHandLoss(at: t)
         }
-        
-        // 2. Global Cooldown Check
-        if timestamp < cooldownUntil {
-            return emittedEvents
-        }
-        
-        let extCount = metrics.extendedFingerCount
-        let pinchDist = metrics.pinchDistance
-        let spread = metrics.spread
-        
-        let indexState = metrics.state(for: .index)
-        let middleState = metrics.state(for: .middle)
-        let ringState = metrics.state(for: .ring)
-        let littleState = metrics.state(for: .little)
-        
-        let isIndexExtended = (indexState == .extended)
-        let isIndexUp = (indexState == .extended || indexState == .partiallyExtended)
-        let isMiddleUp = (middleState == .extended || middleState == .partiallyExtended)
-        let isRingExtended = (ringState == .extended)
-        let isLittleExtended = (littleState == .extended)
-        
-        // Cursor Freeze Threshold: when fingers converge towards pinch (<= 0.22), cursor locks instantly
-        let pinchFreezeThreshold = pinchReleaseThreshold // 0.22
-        
-        // Two fingers detected:
-        // 1. Index + Middle raised together
-        // 2. OR Index up and thumb converging for pinch (pinchDist <= 0.22)
-        // 3. OR 2 fingers extended
-        let isTwoFingersDetected = ((isIndexUp && isMiddleUp && !isRingExtended && !isLittleExtended) ||
-                                    (isIndexUp && pinchDist <= pinchFreezeThreshold && !isRingExtended && !isLittleExtended) ||
-                                    (extCount == 2 && !isRingExtended && !isLittleExtended))
-        
-        // Pure single finger pointing: Index extended, middle/ring/pinky folded, pinch distance clear (> 0.22)
-        let isPointingWithOneFinger = isIndexExtended && !isMiddleUp && !isRingExtended && !isLittleExtended && (pinchDist > pinchFreezeThreshold)
-        
-        // Update stability counters
-        if isTwoFingersDetected || extCount >= 2 {
-            consecutiveTwoFingerFrames += 1
-            consecutiveOneFingerFrames = 0
-        } else if isPointingWithOneFinger {
-            consecutiveOneFingerFrames += 1
-            consecutiveTwoFingerFrames = 0
-        } else {
-            consecutiveOneFingerFrames = 0
-            consecutiveTwoFingerFrames = 0
-        }
-        
-        // 3. PRIORITY 1: MULTI-FINGER HORIZONTAL SWIPE (Point A -> Point B)
-        // Whenever a multi-finger or open-palm pose is detected, evaluate horizontal displacement.
-        // A distinct horizontal stroke (Point A -> Point B) ALWAYS triggers desktop switching,
-        // even if Mission Control is open or the hand has 5 open fingers.
-        let isMultiFinger = isMultiFingerSwipePose(metrics: metrics)
-        let isFiveFingerState = currentState.rawValue.contains("FIVE_FINGER")
-        let thumbState = metrics.state(for: .thumb)
-        let isThumbPresent = (thumbState == .extended || thumbState == .partiallyExtended || extCount >= 5)
-        let isFiveFingerHand = (extCount >= 5 || (extCount >= 4 && isThumbPresent))
-        let isFiveFingerPose = (isFiveFingerHand && spread >= fiveFingerOpenThreshold)
-        
-        if isMultiFinger || isFiveFingerState || isFiveFingerPose {
-            let events = processFourFingerSwipe(metrics: metrics, timestamp: timestamp)
-            if !events.isEmpty {
-                fiveFingerSequenceStartTime = nil
-                return events
-            }
-        } else {
-            swipeAnchorPoint = nil
-            swipeAnchorTime = nil
-        }
-        
-        // 4. PRIORITY 2: FIVE-FINGER MISSION CONTROL SEQUENCE (Open palm -> Pinch in -> Expand out)
-        if isFiveFingerState || isFiveFingerPose {
-            let events = processFiveFingerSequence(metrics: metrics, timestamp: timestamp)
-            if !events.isEmpty {
-                return events
-            }
-            if currentState.rawValue.contains("FIVE_FINGER") {
-                return []
-            }
-        }
-        
-        if isMultiFinger && currentState != .cooldown && !currentState.rawValue.contains("FIVE_FINGER") {
-            currentState = .fourFingerCandidate
-            return []
-        }
-        
-        // 5. PRIORITY 3: TWO-FINGER PINCH / DRAG & ONE-FINGER CURSOR
-        // Pinch is activated immediately at any instance pinch distance is <= pinchStartThreshold (0.15)
-        let isPinchTriggered = (pinchDist <= pinchStartThreshold) && isIndexUp && !isRingExtended && !isLittleExtended
-        
-        // Immediate pinch detection from any pre-pinch state
-        if isPinchTriggered && (currentState == .oneFingerCursor || currentState == .twoFingerDetected || currentState == .idle || currentState == .fourFingerCandidate) {
-            currentState = .pinchCandidate
-            pinchStartTime = timestamp
-        } else if isTwoFingersDetected && currentState == .oneFingerCursor {
-            // Instant cursor lock! Cursor freezes in place.
-            currentState = .twoFingerDetected
-        }
-        
-        switch currentState {
-        case .idle:
-            if isPinchTriggered {
-                currentState = .pinchCandidate
-                pinchStartTime = timestamp
-            } else if isPointingWithOneFinger {
-                currentState = .oneFingerCursor
-            } else if isTwoFingersDetected {
-                currentState = .twoFingerDetected
-            }
-            
-        case .oneFingerCursor:
-            if isPinchTriggered {
-                currentState = .pinchCandidate
-                pinchStartTime = timestamp
-            } else if isTwoFingersDetected {
-                currentState = .twoFingerDetected
-            } else if extCount == 0 && !isIndexExtended {
-                currentState = .idle
-            }
-            
-        case .twoFingerDetected:
-            if isPinchTriggered {
-                currentState = .pinchCandidate
-                pinchStartTime = timestamp
-            } else if isPointingWithOneFinger && consecutiveOneFingerFrames >= 2 {
-                // Must have at least 2 consecutive frames of pure single-finger pointing to unfreeze
-                currentState = .oneFingerCursor
-            } else if extCount == 0 && !isIndexExtended {
-                currentState = .idle
-            }
-            
-        case .pinchCandidate:
-            guard let startTime = pinchStartTime else {
-                currentState = .twoFingerDetected
-                break
-            }
-            let duration = timestamp - startTime
-            
-            // Check if released quickly -> Click!
-            if pinchDist > pinchReleaseThreshold {
-                if duration <= clickMaxDuration {
-                    emittedEvents.append(.leftClick(at: currentCursorPosition))
-                    cooldownUntil = timestamp + clickCooldownDuration
-                    currentState = .cooldown
-                } else {
-                    currentState = .twoFingerDetected
-                }
-                pinchStartTime = nil
-            } else if duration >= dragHoldDelay && !isDraggingActive {
-                // Sustained pinch -> Dragging Mode!
-                isDraggingActive = true
-                currentState = .dragging
-                emittedEvents.append(.leftMouseDown(at: currentCursorPosition))
-                if let indexTip = hand.landmark(.indexTip) {
-                    dragAnchorPosition = indexTip.point
-                }
-            }
-            
-        case .dragging:
-            // When user releases pinch -> Mouse Up!
-            if pinchDist > pinchReleaseThreshold {
-                isDraggingActive = false
-                currentState = .cooldown
-                cooldownUntil = timestamp + 0.15
-                emittedEvents.append(.leftMouseUp(at: currentCursorPosition))
-                dragAnchorPosition = nil
-            } else {
-                // Drag displacement: accumulate hand movement onto currentCursorPosition
-                if let indexTip = hand.landmark(.indexTip) {
-                    if let anchor = dragAnchorPosition {
-                        // Delta in normalized space mapped to screen space
-                        let dx = (indexTip.x - anchor.x) * screenBounds.width * 1.5
-                        let dy = (anchor.y - indexTip.y) * screenBounds.height * 1.5 // inverted Y
-                        
-                        let newX = max(screenBounds.minX, min(screenBounds.maxX, currentCursorPosition.x + dx))
-                        let newY = max(screenBounds.minY, min(screenBounds.maxY, currentCursorPosition.y + dy))
-                        
-                        currentCursorPosition = CGPoint(x: newX, y: newY)
-                        emittedEvents.append(.leftMouseDragged(to: currentCursorPosition))
-                    }
-                    dragAnchorPosition = indexTip.point
-                }
-            }
-            
-        case .cooldown:
-            if timestamp >= cooldownUntil {
-                currentState = .idle
-            }
-            
-        default:
-            currentState = .idle
-        }
-        
-        previousSpread = spread
-        return emittedEvents
-    }
-    
-    // MARK: - Four-Finger / Multi-Finger Swipe Kinematics (Point A -> Point B)
-    private func isMultiFingerSwipePose(metrics: HandMetrics) -> Bool {
-        let extCount = metrics.extendedFingerCount
-        let pinchDist = metrics.pinchDistance
-        
-        let indexState = metrics.state(for: .index)
-        let middleState = metrics.state(for: .middle)
-        let ringState = metrics.state(for: .ring)
-        let littleState = metrics.state(for: .little)
-        let thumbState = metrics.state(for: .thumb)
-        
-        let isIndexUp = (indexState == .extended || indexState == .partiallyExtended)
-        let isMiddleUp = (middleState == .extended || middleState == .partiallyExtended)
-        let isRingUp = (ringState == .extended || ringState == .partiallyExtended)
-        let isLittleUp = (littleState == .extended || littleState == .partiallyExtended)
-        let isThumbUp = (thumbState == .extended || thumbState == .partiallyExtended)
-        
-        let uprightCount = [isIndexUp, isMiddleUp, isRingUp, isLittleUp, isThumbUp].filter { $0 }.count
-        
-        // Exclude single finger pointing
-        if isIndexUp && !isMiddleUp && !isRingUp && !isLittleUp {
-            return false
-        }
-        
-        // Exclude two-finger pause
-        if isIndexUp && isMiddleUp && !isRingUp && !isLittleUp && uprightCount == 2 {
-            return false
-        }
-        
-        // Exclude pinch
-        if isIndexUp && (pinchDist < pinchStartThreshold) && !isRingUp && !isLittleUp {
-            return false
-        }
-        
-        // Classic 4 extended fingers (or 5 open fingers)
-        if extCount >= 4 {
-            return true
-        }
-        
-        // 3 extended with at least 4 upright fingers (handles partially extended little/ring/thumb)
-        if extCount >= 3 && uprightCount >= 4 && isIndexUp && isMiddleUp {
-            return true
-        }
-        
-        // At least 4 upright fingers with index and middle up
-        if uprightCount >= 4 && isIndexUp && isMiddleUp && (isRingUp || isLittleUp) {
-            return true
-        }
-        
-        // Extended index, middle, ring (classical 3+ fingers)
-        if indexState == .extended && middleState == .extended && ringState == .extended {
-            return true
-        }
-        
-        return false
-    }
-    
-    private func processFourFingerSwipe(metrics: HandMetrics, timestamp: TimeInterval) -> [AbstractGestureEvent] {
-        let currentCentroid = metrics.centroid
-        
-        centroidHistory.append(CentroidSample(point: currentCentroid, timestamp: timestamp))
-        centroidHistory.removeAll { timestamp - $0.timestamp > swipeMaxDuration }
-        
-        guard let anchor = swipeAnchorPoint, let startTime = swipeAnchorTime else {
-            swipeAnchorPoint = currentCentroid
-            swipeAnchorTime = timestamp
-            return []
-        }
-        
-        let dx = currentCentroid.x - anchor.x
-        let dy = currentCentroid.y - anchor.y
-        let absDx = abs(dx)
-        let absDy = abs(dy)
-        let dt = timestamp - startTime
-        
-        // If hand is resting / hovering near Point A, keep refreshing Point A to current position
-        // so that the swipe displacement is measured from where the stroke actually starts!
-        if absDx < 0.035 && absDy < 0.035 {
-            swipeAnchorPoint = currentCentroid
-            swipeAnchorTime = timestamp
-            return []
-        }
-        
-        // User has moved from Point A towards Point B!
-        // Check if displacement (~10 cm in camera coordinates) is reached with horizontal dominance:
-        let isHorizontal = absDx >= (absDy * swipeDirectionRatio)
-        let isFarEnough = absDx >= swipeMinDisplacement
-        let isTimely = dt >= 0.04 && dt <= swipeMaxDuration
-        
-        if isFarEnough && isHorizontal && isTimely {
-            // dx > 0: Hand moved to the right -> Trigger swipe to desktop on the right!
-            // dx < 0: Hand moved to the left -> Trigger swipe to desktop on the left!
-            let direction: SwipeDirection = (dx > 0) ? .right : .left
-            print("🚀 AirTrackpad: 4-Finger Desktop Switch Triggered: \(direction) (dx: \(String(format: "%.3f", dx)), dt: \(String(format: "%.3f", dt))s)")
-            
-            swipeAnchorPoint = nil
-            swipeAnchorTime = nil
-            centroidHistory.removeAll()
-            fiveFingerSequenceStartTime = nil
-            
-            currentState = .cooldown
-            cooldownUntil = timestamp + swipeCooldownDuration
-            
-            return [.switchSpace(direction: direction)]
-        }
-        
-        // If stroke took too long (> swipeMaxDuration) without reaching displacement, reset anchor to current point
-        if dt > swipeMaxDuration {
-            swipeAnchorPoint = currentCentroid
-            swipeAnchorTime = timestamp
-        }
-        
-        return []
-    }
-    
-    // MARK: - Five-Finger Mission Control Sequence
-    private func processFiveFingerSequence(metrics: HandMetrics, timestamp: TimeInterval) -> [AbstractGestureEvent] {
-        let spread = metrics.spread
-        let extCount = metrics.extendedFingerCount
-        let thumbState = metrics.state(for: .thumb)
-        let isThumbPresent = (thumbState == .extended || thumbState == .partiallyExtended || extCount >= 5)
-        let isFiveFingerHand = (extCount >= 5 || (extCount >= 4 && isThumbPresent))
-        
-        switch currentState {
-        case .idle, .oneFingerCursor, .twoFingerDetected, .fourFingerCandidate:
-            if isFiveFingerHand && spread >= fiveFingerOpenThreshold {
-                currentState = .fiveFingerOpen
-                fiveFingerSequenceStartTime = timestamp
-            } else if isFiveFingerHand && spread <= fiveFingerPinchThreshold {
-                currentState = .fiveFingerPinchLocked
-                fiveFingerSequenceStartTime = timestamp
-            }
-            
-        case .fiveFingerOpen:
-            if spread < fiveFingerOpenThreshold - 0.05 {
-                currentState = .fiveFingerContracting
-            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
-                currentState = .idle
-                fiveFingerSequenceStartTime = nil
-            }
-            
-        case .fiveFingerContracting:
-            if spread <= fiveFingerPinchThreshold {
-                currentState = .fiveFingerPinchLocked
-            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
-                currentState = .idle
-                fiveFingerSequenceStartTime = nil
-            }
-            
-        case .fiveFingerPinchLocked:
-            if spread > fiveFingerPinchThreshold + 0.06 {
-                currentState = .fiveFingerExpanding
-            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
-                currentState = .idle
-                fiveFingerSequenceStartTime = nil
-            }
-            
-        case .fiveFingerExpanding:
-            if spread >= fiveFingerOpenThreshold {
-                guard let start = fiveFingerSequenceStartTime else {
-                    currentState = .idle
-                    return []
-                }
-                let totalDuration = timestamp - start
-                
-                if totalDuration >= fiveFingerMinSequenceDuration && totalDuration <= fiveFingerMaxSequenceDuration {
-                    currentState = .cooldown
-                    cooldownUntil = timestamp + missionControlCooldownDuration
-                    fiveFingerSequenceStartTime = nil
-                    return [.triggerMissionControl]
-                } else {
-                    currentState = .idle
-                    fiveFingerSequenceStartTime = nil
-                }
-            } else if let start = fiveFingerSequenceStartTime, timestamp - start > fiveFingerMaxSequenceDuration {
-                currentState = .idle
-                fiveFingerSequenceStartTime = nil
-            }
-            
-        default:
-            break
-        }
-        
-        return []
-    }
-    
-    /// Emergency fail-safe release
-    public func emergencyRelease() -> [AbstractGestureEvent] {
-        lock.lock()
-        defer { lock.unlock() }
+        handLostSince = nil
+        if handPresentSince == nil { handPresentSince = t }
         var events: [AbstractGestureEvent] = []
-        if isDraggingActive {
-            isDraggingActive = false
-            events.append(.leftMouseUp(at: currentCursorPosition))
+
+        // 1. Pose
+        let rawPose = PoseClassifier.classify(m)
+        let pose = poseStabilizer.update(rawPose)
+        if pose == .openHand { lastOpenHandTime = t }
+        defer { previousPose = pose }
+
+        // 2. Pinches (left = thumb↔index, right = thumb↔middle)
+        let isFree = currentState != .pressed && currentState != .dragging
+        let pressAllowed = isFree
+            && t >= cooldownUntil
+            && pose != .openHand
+            && t - lastOpenHandTime > 0.25
+            && !fiveFinger.isGathering
+            && !scrollBegan
+        let leftTransition = leftPinch.update(
+            distance: m.pinchTracked ? m.pinchDistance : nil,
+            fingerReach: m.reach(for: .index),
+            timestamp: t,
+            allowPress: pressAllowed && !rightPinch.isPinched
+        )
+        let rightTransition = rightPinch.update(
+            distance: m.middlePinchTracked ? m.middlePinchDistance : nil,
+            fingerReach: m.reach(for: .middle),
+            timestamp: t,
+            allowPress: pressAllowed && config.rightClickEnabled && !leftPinch.isPinched
+                && m.pinchDistance > config.pinchReleaseThreshold
+        )
+
+        // 3. Pointer: calm it down while a pinch is visibly closing, before the press is confirmed.
+        var gainMultiplier = 1.0
+        if isFree && leftPinch.closingSpeed > 0.8 && leftPinch.progress > 0.15 {
+            gainMultiplier = max(0.15, 1.0 - (leftPinch.closingSpeed - 0.8) / 1.6)
         }
+        // Absolute mode: widen the dead zone as a pinch closes (only before the press — during a
+        // drag the pointer must follow the hand closely).
+        let leashBoost = isFree ? 18.0 * leftPinch.progress * leftPinch.progress : 0.0
+        let sample = cursor.update(
+            anchor: m.cursorAnchor,
+            scale: m.handScale,
+            timestamp: t,
+            gainMultiplier: gainMultiplier,
+            leashBoost: leashBoost
+        )
+
+        telemetry.pose = pose
+        telemetry.rawPose = rawPose
+        telemetry.pinchDistance = leftPinch.distance
+        telemetry.pinchProgress = leftPinch.progress
+        telemetry.isPinched = leftPinch.isPinched
+        telemetry.handSpeed = sample.speed
+        telemetry.handScale = sample.scale
+        defer {
+            telemetry.swipeArmed = swipe.isArmed
+            telemetry.swipeRejection = swipe.lastRejection
+            telemetry.fiveFingerPhase = fiveFinger.phase
+        }
+
+        // 4. An active press or drag owns the hand until the pinch opens.
+        if currentState == .pressed {
+            handlePressed(leftTransition, pose: pose, sample: sample, t: t, events: &events)
+            return events
+        }
+        if currentState == .dragging {
+            handleDragging(leftTransition, pose: pose, sample: sample, t: t, events: &events)
+            return events
+        }
+
+        // 5. Desktop swipe. A hand sweeping into view is already moving fast, so swipes only
+        // count once it has been in view for a moment.
+        if t - (handPresentSince ?? t) < 0.3 {
+            swipe.reset()
+        }
+        if config.swipeEnabled,
+           let stroke = swipe.update(pose: pose, palm: m.centroid, scale: sample.scale, timestamp: t) {
+            endScroll(&events)
+            let direction: SwipeDirection
+            if config.naturalSwipeDirection {
+                direction = stroke.direction == .right ? .left : .right
+            } else {
+                direction = stroke.direction
+            }
+            events.append(.switchSpace(direction: direction))
+            telemetry.lastSwipe = stroke
+            fiveFinger.reset()
+            leftPinch.cancel()
+            rightPinch.cancel()
+            cooldownUntil = t + config.gestureCooldown
+            currentState = .cooldown
+            return events
+        }
+
+        // 6. Mission Control
+        if config.missionControlEnabled {
+            let thumbUp = m.state(for: .thumb).isUp || m.extendedFingerCount >= 5
+            if fiveFinger.update(pose: pose, thumbUp: thumbUp, spread: m.spread, timestamp: t) {
+                endScroll(&events)
+                events.append(.triggerMissionControl)
+                swipe.reset()
+                leftPinch.cancel()
+                rightPinch.cancel()
+                cooldownUntil = t + max(config.gestureCooldown, 0.5)
+                currentState = .cooldown
+                return events
+            }
+            if fiveFinger.isGathering {
+                // Gathering five fingertips brings thumb and index together too; make sure that
+                // can't count as a pinch, even if the sequence is abandoned or times out.
+                leftPinch.cancel()
+                rightPinch.cancel()
+            }
+            if fiveFinger.isEngaged {
+                endScroll(&events)
+                currentState = .missionControlGesture
+                return events
+            }
+        }
+
+        if t < cooldownUntil {
+            endScroll(&events)
+            currentState = .cooldown
+            return events
+        }
+
+        // 7. Pinch press → click / drag candidate
+        if leftTransition == .pressed {
+            endScroll(&events)
+            events.append(.cancelMomentum)
+            rollBackPointer(since: leftPinch.lastSteadyOpenTime ?? (t - 0.1), now: t, window: config.pressRollbackWindow, events: &events)
+            pressTime = t
+            pressAnchor = sample.filteredAnchor
+            rightPinch.cancel()
+            currentState = .pressed
+            return events
+        }
+        if rightTransition == .pressed {
+            endScroll(&events)
+            events.append(.cancelMomentum)
+            events.append(.rightClick)
+            clickCount = 0
+            settleUntil = t + config.postClickSettle
+            return events
+        }
+
+        // 8. Pose-driven behaviour. While the raw pose is already heading to a different
+        // gesture (the stabilizer hasn't switched yet), hold output instead of emitting the
+        // stray motion of the hand changing shape.
+        switch pose {
+        case .scroll where config.scrollEnabled:
+            scrollPoseFrames += 1
+            currentState = .scrolling
+            let leaving = rawPose == .pointing || rawPose == .openHand || rawPose == .fist
+            if scrollPoseFrames >= 2 && !leaving {
+                let step = scrollStep(sample: sample, t: t)
+                if step.dx != 0 || step.dy != 0 {
+                    events.append(.scroll(deltaX: step.dx, deltaY: step.dy, phase: scrollBegan ? .changed : .began))
+                    scrollBegan = true
+                }
+            } else {
+                lastScrollAnchor = sample.filteredAnchor
+                lastScrollTime = t
+            }
+        case .pointing:
+            if previousPose != .pointing {
+                // Settling the index finger into a point (out of a fist, out of ✌) nudges the
+                // knuckles; give it a beat before the pointer follows.
+                settleUntil = max(settleUntil, t + 0.08)
+            }
+            endScroll(&events)
+            currentState = .pointing
+            let leaving = rawPose == .scroll || rawPose == .openHand || rawPose == .fist
+            if t >= settleUntil && !leaving {
+                emitMotion(sample, t: t, events: &events)
+            }
+        case .openHand:
+            endScroll(&events)
+            currentState = .openHand
+        default:
+            endScroll(&events)
+            currentState = .idle
+        }
+        return events
+    }
+
+    // MARK: - Press / drag
+
+    private func handlePressed(
+        _ transition: PinchTransition,
+        pose: HandPose,
+        sample: CursorEngine.Sample,
+        t: TimeInterval,
+        events: inout [AbstractGestureEvent]
+    ) {
+        if transition == .released {
+            let travel: Double
+            switch cursor.mode {
+            case .relative:
+                travel = hypot(Double(netSinceClick.dx), Double(netSinceClick.dy))
+            case .absolute:
+                if let last = lastClickTarget, let now = cursor.target(at: t) {
+                    travel = hypot(Double(now.x - last.x), Double(now.y - last.y))
+                } else {
+                    travel = 0
+                }
+            }
+            let isRepeat = t - lastClickTime <= config.doubleClickInterval
+                && travel <= config.doubleClickMaxTravel
+                && clickCount > 0
+            clickCount = isRepeat ? min(clickCount + 1, 3) : 1
+            lastClickTime = t
+            netSinceClick = .zero
+            lastClickTarget = cursor.target(at: t)
+            events.append(.leftClick(count: clickCount))
+            settleUntil = t + config.postClickSettle
+            currentState = pose == .pointing ? .pointing : .idle
+            return
+        }
+        let moved = hypot(Double(sample.filteredAnchor.x - pressAnchor.x), Double(sample.filteredAnchor.y - pressAnchor.y)) / max(sample.scale, 0.02)
+        if moved >= config.dragStartDistance || t - pressTime >= config.dragHoldDelay {
+            events.append(.leftMouseDown)
+            clickCount = 0
+            currentState = .dragging
+            if cursor.mode == .absolute {
+                cursor.resetLeash()
+            }
+        }
+    }
+
+    private func handleDragging(
+        _ transition: PinchTransition,
+        pose: HandPose,
+        sample: CursorEngine.Sample,
+        t: TimeInterval,
+        events: inout [AbstractGestureEvent]
+    ) {
+        if transition == .released {
+            let onset = leftPinch.releaseOnsetTime ?? t
+            rollBackPointer(since: onset - 0.04, now: t, window: config.releaseRollbackWindow, events: &events)
+            events.append(.leftMouseUp)
+            settleUntil = t + config.postClickSettle
+            currentState = pose == .pointing ? .pointing : .idle
+            return
+        }
+        emitMotion(sample, t: t, events: &events)
+    }
+
+    // MARK: - Pointer output
+
+    private func emitMotion(_ sample: CursorEngine.Sample, t: TimeInterval, events: inout [AbstractGestureEvent]) {
+        switch cursor.mode {
+        case .relative:
+            let d = sample.delta
+            let length = hypot(Double(d.dx), Double(d.dy))
+            guard length > 1e-3 else { return }
+            events.append(.pointerDelta(dx: Double(d.dx), dy: Double(d.dy)))
+            cursor.recordEmitted(d, at: t)
+            netSinceClick.dx += d.dx
+            netSinceClick.dy += d.dy
+        case .absolute:
+            guard let p = sample.target else { return }
+            events.append(.pointerWarp(to: p))
+            cursor.recordTarget(p, at: t)
+        }
+    }
+
+    /// Undoes pointer motion emitted since `onset` (clamped to `window`), which is the motion
+    /// produced by the fingers themselves while pinching or un-pinching.
+    private func rollBackPointer(
+        since onset: TimeInterval,
+        now t: TimeInterval,
+        window: TimeInterval,
+        events: inout [AbstractGestureEvent]
+    ) {
+        let from = min(max(onset, t - window), t - 0.02)
+        switch cursor.mode {
+        case .relative:
+            let back = cursor.emittedMotion(since: from)
+            let length = hypot(Double(back.dx), Double(back.dy))
+            // Large motion means the user was deliberately moving; leave it alone.
+            guard length > 0.5, length < 90 else { return }
+            let undo = CGVector(dx: -back.dx, dy: -back.dy)
+            events.append(.pointerDelta(dx: Double(undo.dx), dy: Double(undo.dy)))
+            cursor.recordEmitted(undo, at: t)
+            netSinceClick.dx += undo.dx
+            netSinceClick.dy += undo.dy
+        case .absolute:
+            guard let p = cursor.target(at: from) else { return }
+            events.append(.pointerWarp(to: p))
+            cursor.recordTarget(p, at: t)
+        }
+    }
+
+    // MARK: - Scroll
+
+    private func scrollStep(sample: CursorEngine.Sample, t: TimeInterval) -> (dx: Double, dy: Double) {
+        let f = sample.filteredAnchor
+        defer {
+            lastScrollAnchor = f
+            lastScrollTime = t
+        }
+        guard let prev = lastScrollAnchor, let lastT = lastScrollTime, t > lastT, t - lastT < 0.25 else {
+            return (0, 0)
+        }
+        let dt = t - lastT
+        let s = max(sample.scale, 0.02)
+        let ux = Double(f.x - prev.x) / s
+        let uy = Double(f.y - prev.y) / s
+        let v = hypot(ux, uy) / dt
+        let keep = v > config.scrollRestSpeed ? (v - config.scrollRestSpeed) / v : 0.0
+        let ramp = max(0.0, min(1.0, (v - 1.0) / 4.0))
+        let accel = 1.0 + 0.8 * ramp * ramp * (3 - 2 * ramp)
+        let gain = config.scrollPointsPerPalm * config.scrollSensitivity * accel * keep
+
+        // Rails: lock onto the dominant axis so vertical scrolling doesn't wobble sideways.
+        railX = 0.7 * railX + 0.3 * abs(ux)
+        railY = 0.7 * railY + 0.3 * abs(uy)
+        var sx = ux * gain
+        var sy = uy * gain
+        if railX < 0.4 * railY { sx = 0 } else if railY < 0.4 * railX { sy = 0 }
+
+        // Scroll-wheel convention: +deltaY moves content down, +deltaX moves content right.
+        // Image y grows upward, so a rising hand has uy > 0.
+        if config.naturalScrolling {
+            return (sx, -sy)
+        } else {
+            return (-sx, sy)
+        }
+    }
+
+    private func endScroll(_ events: inout [AbstractGestureEvent]) {
+        if scrollBegan {
+            events.append(.scroll(deltaX: 0, deltaY: 0, phase: .ended))
+            // Dropping the middle finger to go back to pointing nudges the knuckles.
+            settleUntil = max(settleUntil, (lastScrollTime ?? 0) + 0.10)
+        }
+        scrollBegan = false
+        scrollPoseFrames = 0
+        lastScrollAnchor = nil
+        lastScrollTime = nil
+        railX = 0
+        railY = 0
+    }
+
+    // MARK: - Hand loss
+
+    private func handleHandLoss(at t: TimeInterval) -> [AbstractGestureEvent] {
+        if currentState == .handLost {
+            return []
+        }
+        if handLostSince == nil { handLostSince = t }
+        let lostFor = t - (handLostSince ?? t)
+        if lostFor < config.handLossGrace {
+            // Ride out short dropouts (blur, occlusion): keep any button held and any scroll
+            // open, keep swipe tracking alive, and just freeze the pointer.
+            telemetry.rawPose = .none
+            return []
+        }
+        let events = releaseEverything()
+        currentState = .handLost
+        return events
+    }
+
+    private func releaseEverything() -> [AbstractGestureEvent] {
+        var events: [AbstractGestureEvent] = []
+        if currentState == .dragging {
+            events.append(.leftMouseUp)
+        }
+        endScroll(&events)
         currentState = .idle
-        pinchStartTime = nil
-        consecutiveOneFingerFrames = 0
-        consecutiveTwoFingerFrames = 0
-        centroidHistory.removeAll()
-        fiveFingerSequenceStartTime = nil
+        handPresentSince = nil
+        poseStabilizer.reset()
+        leftPinch.reset()
+        rightPinch.reset()
+        swipe.reset()
+        fiveFinger.reset()
+        cursor.reset()
+        previousPose = .none
+        telemetry = GestureTelemetry()
         return events
     }
 }
