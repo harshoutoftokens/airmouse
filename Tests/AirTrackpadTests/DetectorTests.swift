@@ -104,7 +104,7 @@ final class DesktopSwipeTrackerTests: XCTestCase {
     private func run(_ d: inout DesktopSwipeTracker, xs: [Double], start: Double = 0) -> [DesktopSwipeUpdate] {
         var out: [DesktopSwipeUpdate] = []
         for (i, x) in xs.enumerated() {
-            out += d.update(pose: .openHand, palm: Landmark(x: x, y: 0.4), scale: 0.15, timestamp: start + Double(i) / 30.0)
+            out += d.update(pose: .openHand, point: Landmark(x: x, y: 0.4), scale: 0.15, timestamp: start + Double(i) / 30.0)
         }
         return out
     }

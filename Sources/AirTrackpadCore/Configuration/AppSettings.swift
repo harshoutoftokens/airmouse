@@ -41,7 +41,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// Higher = shorter / slower strokes still count.
     public var swipeSensitivity: Double = 1.0
     public var naturalSwipeDirection: Bool = false
-    public var spaceSwitchStyle: SpaceSwitchStyle = .animated
+    public var spaceSwitchStyle: SpaceSwitchStyle = .instant
 
     // MARK: Mission Control
     public var missionControlEnabled: Bool = true

@@ -18,7 +18,7 @@ Built in Swift 6 for Apple Silicon. Everything runs on-device; no images are sto
 | 🤏 **Drag** | Pinch, then move — or pinch and hold still ~0.45 s | Mouse down → drag → let go to drop |
 | 🤌 **Right-click** | Thumb–middle pinch (index stays away) | Right click / context menu |
 | ✌ **Scroll** | Index + middle up, move hand up/down (or sideways) | Smooth trackpad scrolling with momentum |
-| 🖐 **Switch desktop** | All four fingers up, move sideways — the desktop follows your hand live. Let go (close the hand, hold still, or flick) | Past halfway or flicked → next / previous Space; otherwise it slides back. Bringing the hand back is ignored |
+| 🖐 **Switch desktop** | Open hand, then flick the fingers (or swipe the hand) sideways — fast switches instantly. A slow move drags the desktop live; let go by closing the hand or holding still | Fast swipe, or past halfway → next / previous Space; otherwise it slides back. Bringing the hand back is ignored |
 | 🖐→🤏→🖐 **Mission Control** | Open palm, gather all fingertips together, open again | Mission Control |
 
 A ring follows the pointer while AirTrackpad is in control: it tightens as your fingers close,
@@ -86,7 +86,7 @@ Requirements: macOS 13+ on Apple Silicon, Xcode 16+ (Swift 6).
 ```bash
 make setup-cert   # once: local signing identity so permissions survive rebuilds
 make run          # release build → AirTrackpad.app → launch
-make test         # 128 headless unit / replay / regression tests
+make test         # 137 headless unit / replay / regression tests
 make logs         # live log of swipes (commit/cancel, progress, why), clicks, drags, switch results
 ```
 

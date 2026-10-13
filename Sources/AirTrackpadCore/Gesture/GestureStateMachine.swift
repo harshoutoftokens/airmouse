@@ -213,7 +213,7 @@ public final class GestureStateMachine: @unchecked Sendable {
             swipe.resetTracking()
         }
         if config.swipeEnabled {
-            let updates = swipe.update(pose: pose, palm: m.centroid, scale: sample.scale, timestamp: t)
+            let updates = swipe.update(pose: pose, point: m.fingertipCenter, scale: sample.scale, timestamp: t)
             if !updates.isEmpty || swipe.isActive {
                 endScroll(&events)
                 fiveFinger.reset()

@@ -420,6 +420,92 @@ final class GestureStateMachineTests: XCTestCase {
         XCTAssertEqual(driver.events.switches, [.right])
     }
 
+    // Live log: a very fast stroke blurred the fingers (no open hand for several frames), was
+    // cancelled, and the slower return stroke then switched the *opposite* way.
+    func testBlurredFastStrokeSwitchesAndReturnIsIgnored() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        driver.feed(openHand(x: 0.30), frames: 6) { hand, i in
+            hand.palm.x = 0.30 + Double(i + 1) * 0.045
+            if i >= 1 { hand.fingers = [.index] } // smeared: reads as pointing
+        }
+        driver.feed(openHand(x: 0.57), frames: 2)
+        // Slower, clearly visible return.
+        driver.feed(openHand(x: 0.57), frames: 14) { hand, i in hand.palm.x = 0.57 - Double(i + 1) * 0.018 }
+        driver.feed(openHand(x: 0.32), frames: 10)
+        XCTAssertEqual(driver.events.switches, [.right])
+    }
+
+    // Blur hiding the fingers for a moment while the hand is moving is not "letting go".
+    func testBlurWhileMovingDoesNotLetGo() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        driver.feed(openHand(x: 0.30), frames: 20) { hand, i in
+            hand.palm.x = 0.30 + Double(i + 1) * 0.006
+            hand.fingers = (6...13).contains(i) ? [.index] : SyntheticHand.openHand
+        }
+        driver.feed(openHand(x: 0.42), frames: 14)
+        XCTAssertEqual(driver.events.switches, [.right])
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 1)
+    }
+
+    func testFastStrokeSwitchesMidStroke() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.35), frames: 12)
+        let during = driver.feed(openHand(x: 0.35), frames: 5) { hand, i in
+            hand.palm.x = 0.35 + Double(i + 1) * 0.03
+        }
+        XCTAssertEqual(during.switches, [.right], "no waiting for the hand to stop")
+    }
+
+    func testReturnAfterACancelledSwipeIsIgnored() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.36)
+        driver.feed(openHand(x: 0.36), frames: 12) // held: slides back
+        driver.feed(openHand(x: 0.36), frames: 6) { hand, i in hand.palm.x = 0.36 - Double(i + 1) * 0.03 }
+        driver.feed(openHand(x: 0.18), frames: 8)
+        XCTAssertTrue(driver.events.switches.isEmpty)
+    }
+
+    /// Fingers flicked sideways around still knuckles: only the fingertips move.
+    private func flick(_ driver: FrameDriver, from: Double, to: Double, frames: Int = 3, fingers: Set<Finger> = SyntheticHand.openHand) {
+        var h = openHand()
+        h.fingers = fingers
+        driver.feed(h, frames: frames) { hand, i in
+            hand.tipOffset = from + (to - from) * Double(i + 1) / Double(frames)
+        }
+    }
+
+    func testFingerFlickRightSwitchesRight() {
+        let driver = FrameDriver()
+        var rest = openHand()
+        rest.tipOffset = -0.05
+        driver.feed(rest, frames: 15)
+        flick(driver, from: -0.05, to: 0.06)
+        XCTAssertEqual(driver.events.switches, [.right])
+    }
+
+    func testFingerFlickLeftSwitchesLeft() {
+        let driver = FrameDriver()
+        var rest = openHand()
+        rest.tipOffset = 0.05
+        driver.feed(rest, frames: 15)
+        flick(driver, from: 0.05, to: -0.06)
+        XCTAssertEqual(driver.events.switches, [.left])
+    }
+
+    // The flick back starts from a different hand shape (thumb folded): it never counts.
+    func testFlickFromAClosedShapeIsIgnored() {
+        let driver = FrameDriver()
+        var shape = openHand()
+        shape.fingers = [.index, .middle, .ring]
+        shape.tipOffset = 0.06
+        driver.feed(shape, frames: 30)
+        flick(driver, from: 0.06, to: -0.05, fingers: [.index, .middle, .ring])
+        XCTAssertTrue(driver.events.switches.isEmpty)
+    }
+
     func testReturnStrokeDoesNotUndoTheSwitch() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.35), frames: 12)

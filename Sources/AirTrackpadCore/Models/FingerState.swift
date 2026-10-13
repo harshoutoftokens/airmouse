@@ -46,6 +46,10 @@ public struct HandMetrics: Sendable, Codable {
     /// (low confidence or extrapolated); the pinch detector then holds its state.
     public var pinchTracked: Bool
     public var middlePinchTracked: Bool
+    /// Mean of the four (non-thumb) fingertips, or nil when fewer than three were actually
+    /// observed. Drives desktop swipes: it follows both a moving hand and fingers flicked
+    /// sideways around still knuckles (the palm center barely moves for a flick).
+    public var fingertipCenter: Landmark?
 
     public init(
         timestamp: TimeInterval,
@@ -59,7 +63,8 @@ public struct HandMetrics: Sendable, Codable {
         cursorAnchor: Landmark? = nil,
         fingerReach: [Finger: Double]? = nil,
         pinchTracked: Bool = true,
-        middlePinchTracked: Bool = true
+        middlePinchTracked: Bool = true,
+        fingertipCenter: Landmark? = nil
     ) {
         self.timestamp = timestamp
         self.extendedFingerCount = extendedFingerCount
@@ -75,6 +80,7 @@ public struct HandMetrics: Sendable, Codable {
         self.middlePinchDistance = middlePinchDistance
         self.pinchTracked = pinchTracked
         self.middlePinchTracked = middlePinchTracked
+        self.fingertipCenter = fingertipCenter
         self.cursorAnchor = cursorAnchor ?? centroid
         if let reach = fingerReach {
             var raw: [Finger.RawValue: Double] = [:]
@@ -99,7 +105,7 @@ public struct HandMetrics: Sendable, Codable {
 
     private enum CodingKeys: String, CodingKey {
         case timestamp, extendedFingerCount, fingerStates, centroid, spread, pinchDistance, handScale
-        case middlePinchDistance, cursorAnchor, fingerReach, pinchTracked, middlePinchTracked
+        case middlePinchDistance, cursorAnchor, fingerReach, pinchTracked, middlePinchTracked, fingertipCenter
     }
 
     public init(from decoder: Decoder) throws {
@@ -117,6 +123,7 @@ public struct HandMetrics: Sendable, Codable {
             ?? HandMetrics.estimatedReach(from: fingerStates)
         pinchTracked = try c.decodeIfPresent(Bool.self, forKey: .pinchTracked) ?? true
         middlePinchTracked = try c.decodeIfPresent(Bool.self, forKey: .middlePinchTracked) ?? true
+        fingertipCenter = try c.decodeIfPresent(Landmark.self, forKey: .fingertipCenter)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -133,6 +140,7 @@ public struct HandMetrics: Sendable, Codable {
         try c.encode(fingerReach, forKey: .fingerReach)
         try c.encode(pinchTracked, forKey: .pinchTracked)
         try c.encode(middlePinchTracked, forKey: .middlePinchTracked)
+        try c.encodeIfPresent(fingertipCenter, forKey: .fingertipCenter)
     }
 
     // MARK: - Reach estimates for synthetic / legacy metrics

@@ -19,6 +19,9 @@ struct SyntheticHand {
     var middlePinch: Double = 0.8
     var spread: Double = 0.30
     var scale: Double = 0.15
+    /// Sideways offset of the fingertips from above the palm (a finger flick), normalized units.
+    var tipOffset: Double = 0
+    var tipsSeen = true
     /// false = the thumb/index tips weren't actually observed this frame.
     var pinchTracked = true
 
@@ -47,7 +50,8 @@ struct SyntheticHand {
             handScale: scale,
             middlePinchDistance: middlePinch,
             cursorAnchor: anchor,
-            pinchTracked: pinchTracked
+            pinchTracked: pinchTracked,
+            fingertipCenter: tipsSeen ? Landmark(x: palm.x + tipOffset, y: palm.y + scale * 1.2) : nil
         )
         return (hand, metrics)
     }

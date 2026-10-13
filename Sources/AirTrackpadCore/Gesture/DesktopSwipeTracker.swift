@@ -41,9 +41,17 @@ public struct DesktopSwipeTracker: Sendable {
     public var flickVelocity: Double = 1.7
     /// A flick has to have dragged the desktop at least this far to complete it on its own.
     public var flickMinProgress: Double = 0.25
+    /// A fast stroke switches immediately, mid-stroke, once it is this fast (progress/s,
+    /// ≈ 2.2 palm lengths/s) and has covered `fastMinProgress` — no need to slow down or let go.
+    public var fastVelocity: Double = 1.45
+    public var fastMinProgress: Double = 0.18
+    /// While the hand moves fast, motion blur hides the fingers; ride out pose dropouts this long.
+    public var fastPoseLatch: TimeInterval = 0.35
     /// Releasing while moving this fast (progress/s) toward / away from the target commits / cancels.
     public var releaseVelocity: Double = 1.0
-    public var dominance: Double = 1.3
+    /// Sideways vs. vertical travel needed to start. A flick swings the fingertips in an arc
+    /// around the knuckles, so its path is diagonal at first.
+    public var dominance: Double = 1.0
     /// Palm lengths per second below which the hand counts as still.
     public var restSpeed: Double = 0.45
     public var holdToRelease: TimeInterval = 0.30
@@ -75,8 +83,10 @@ public struct DesktopSwipeTracker: Sendable {
     /// Largest |progress| reached and the fastest progress rate toward it, this swipe.
     private var maxReach: Double = 0
     private var peakTowardTarget: Double = 0
-    private var lastCommitTime: TimeInterval = -.infinity
-    private var lastCommitHandSign: Double = 0
+    /// The last swipe that went anywhere (switched or not) and its hand direction: a stroke back
+    /// the other way right after it is the hand returning, not a new swipe.
+    private var lastReleaseTime: TimeInterval = -.infinity
+    private var lastReleaseHandSign: Double = 0
     /// Hand direction of the most recent swipe (+1 right, −1 left).
     private var lastSessionHandSign: Double = 0
 
@@ -100,16 +110,26 @@ public struct DesktopSwipeTracker: Sendable {
         if !isActive { needsRest = false }
     }
 
+    /// - Parameter point: the tracked hand position (the fingertip center), or nil when it
+    ///   wasn't seen this frame — the frame then only counts for the pose.
     public mutating func update(
         pose: HandPose,
-        palm: Landmark,
+        point: Landmark?,
         scale: Double,
         timestamp t: TimeInterval
     ) -> [DesktopSwipeUpdate] {
         let s = max(scale, 0.02)
+        guard let palm = point else {
+            if pose == .openHand {
+                lastOpenTime = t
+            } else if isActive && t - lastOpenTime > fastPoseLatch {
+                return [finish(at: t, reason: "let go")]
+            }
+            return []
+        }
         if let lx = lastX, let lt = lastT, t > lt, t - lt < 0.25 {
             let v = (palm.x - lx) / (t - lt) / s
-            velocity = 0.5 * v + 0.5 * velocity
+            velocity = 0.7 * v + 0.3 * velocity
         } else {
             velocity = 0
         }
@@ -126,7 +146,7 @@ public struct DesktopSwipeTracker: Sendable {
         if pose == .openHand {
             openFrames += 1
             lastOpenTime = t
-        } else if t - lastOpenTime > poseLatch {
+        } else if t - lastOpenTime > (abs(velocity) > 2 * restSpeed ? fastPoseLatch : poseLatch) {
             // Hand closed or dropped: the trackpad "lift".
             openFrames = 0
             anchorX = nil
@@ -144,6 +164,9 @@ public struct DesktopSwipeTracker: Sendable {
             }
             peakTowardTarget = max(peakTowardTarget, progressVelocity * side)
 
+            if progressVelocity * side >= fastVelocity && abs(progress) >= fastMinProgress {
+                return [finish(at: t, reason: "fast", forceCommit: true)]
+            }
             if peakTowardTarget >= flickVelocity
                 && maxReach >= flickMinProgress
                 && progressVelocity * side < 0.3 * peakTowardTarget {
@@ -179,7 +202,7 @@ public struct DesktopSwipeTracker: Sendable {
         let dx = (palm.x - ax) / s
         let dy = (palm.y - anchorY) / s
         // A resting hand drifts; keep the start point under it so drift never starts a swipe.
-        if stillFor > 0.3 || abs(dy) > max(startDistance * 2, abs(dx) * dominance) {
+        if stillFor > 0.3 || abs(dy) > max(startDistance * 2, abs(dx) * 2) {
             anchorX = palm.x
             anchorY = palm.y
             return []
@@ -187,7 +210,7 @@ public struct DesktopSwipeTracker: Sendable {
         guard abs(dx) >= startDistance, abs(dx) >= dominance * abs(dy) else { return [] }
 
         let handSign: Double = dx > 0 ? 1 : -1
-        if handSign == -lastCommitHandSign && t - lastCommitTime < returnLockout {
+        if handSign == -lastReleaseHandSign && t - lastReleaseTime < returnLockout {
             // Bringing the hand back after a switch: follow it without dragging the desktop.
             anchorX = palm.x
             anchorY = palm.y
@@ -199,6 +222,12 @@ public struct DesktopSwipeTracker: Sendable {
         maxReach = 0
         peakTowardTarget = 0
         progress = max(-1.2, min(1.2, directionSign * dx / fullSwipeDistance))
+        maxReach = abs(progress)
+        let side: Double = progress >= 0 ? 1 : -1
+        if progressVelocity * side >= fastVelocity && abs(progress) >= fastMinProgress {
+            // A flick can cover the start distance and the fast threshold in one frame.
+            return [.began, .changed(progress: progress), finish(at: t, reason: "fast", forceCommit: true)]
+        }
         return [.began, .changed(progress: progress)]
     }
 
@@ -218,9 +247,9 @@ public struct DesktopSwipeTracker: Sendable {
             reason: reason,
             duration: t - beganAt
         )
-        if commit {
-            lastCommitTime = t
-            lastCommitHandSign = side * directionSign
+        if commit || maxReach >= 0.1 {
+            lastReleaseTime = t
+            lastReleaseHandSign = side * directionSign
         }
         lastSessionHandSign = side * directionSign
         let final = progress
