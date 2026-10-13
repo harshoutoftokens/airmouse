@@ -256,7 +256,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
                 actionText = direction == .right ? "Desktop →" : "Desktop ←"
                 flash = direction == .right ? .swipeRight : .swipeLeft
                 if let s = telemetry.lastSwipe {
-                    log.info("swipe \(direction.rawValue) dist=\(s.distance, format: .fixed(precision: 2)) peak=\(s.peakSpeed, format: .fixed(precision: 2)) dur=\(s.duration, format: .fixed(precision: 3))")
+                    log.info("swipe \(direction.rawValue, privacy: .public) dist=\(s.distance, format: .fixed(precision: 2)) peak=\(s.peakSpeed, format: .fixed(precision: 2)) dur=\(s.duration, format: .fixed(precision: 3))")
                 }
             case .triggerMissionControl:
                 actionText = "Mission Control"
@@ -342,7 +342,9 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
         let text: String
         var flash: CursorFlash.Kind?
         switch result {
-        case .switched:
+        case .switched(let direction):
+            // The slide itself is the feedback; only log it.
+            log.info("space switch: moved \(direction.rawValue, privacy: .public)")
             return
         case .blockedAtEdge(let direction):
             text = direction == .right ? "No desktop to the right" : "No desktop to the left"
