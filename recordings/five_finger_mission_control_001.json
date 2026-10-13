@@ -30,6 +30,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -92,6 +98,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -156,6 +168,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -218,6 +236,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -282,6 +306,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -344,6 +374,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -408,6 +444,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -470,6 +512,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -534,6 +582,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -596,6 +650,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -660,6 +720,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -722,6 +788,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -786,6 +858,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -848,6 +926,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -912,6 +996,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -974,6 +1064,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -1038,6 +1134,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -1100,6 +1202,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
@@ -1164,6 +1272,12 @@
           "ring" : "extended",
           "thumb" : "extended"
         },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
+        },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,
         "middlePinchTracked" : true,
@@ -1226,6 +1340,12 @@
           "middle" : "extended",
           "ring" : "extended",
           "thumb" : "extended"
+        },
+        "fingertipCenter" : {
+          "confidence" : 1,
+          "x" : 0.5,
+          "y" : 0.5800000000000001,
+          "z" : 0
         },
         "handScale" : 0.15,
         "middlePinchDistance" : 0.8,

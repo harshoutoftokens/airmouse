@@ -12,7 +12,8 @@ All coordinates are Vision-normalized `[0, 1]²`, mirrored so +x is the user's r
 | Metric | Definition | Why |
 | :--- | :--- | :--- |
 | Hand scale *s* | `max(|wrist − middleMCP|, |indexMCP − littleMCP| / 0.72)` | Palm length collapses when the palm tilts, knuckle width when the hand turns; the max survives both. Every distance below is divided by *s* ("palm lengths"). |
-| Palm center | Confidence-weighted mean of wrist + 4 MCPs | Drives swipes. Stable under finger motion and motion blur. |
+| Palm center | Confidence-weighted mean of wrist + 4 MCPs | Stable under finger motion and motion blur. |
+| Fingertip center | Mean of the index…little tips, only if ≥ 3 were actually observed | Drives desktop swipes: follows a moving hand *and* fingers flicked sideways around still knuckles. |
 | Cursor anchor | `0.50·indexMCP + 0.35·middleMCP + 0.15·indexPIP` | Barely moves when the fingertip curls into a pinch (TouchFree "index stable" idea). |
 | Pinch distance | `|thumbTip − indexTip| / s` | Left click / drag. **Thumb-based only.** |
 | Middle pinch | `|thumbTip − middleTip| / s` | Right click. |
@@ -93,18 +94,27 @@ the output stage drains them at ~125 Hz and adds momentum (τ = 0.33 s) after `e
 ## 7. Desktop swipe (`DesktopSwipeTracker`) — interactive, like the trackpad
 
 While the stable pose is `openHand` (armed after 2 frames, 0.3 s after the hand appears), the desktop
-follows the palm center:
+follows the **fingertip center** — so both moving the whole hand and flicking the fingers sideways
+around still knuckles work (a recorded user flick: fingers swing ~80° in 0.1 s while the palm center
+moves < 0.1 palm). Frames where the fingertips weren't seen are skipped.
 
-- Starts after **0.12 palm** of sideways travel (≥ 1.3 × vertical). A resting hand's drift keeps
+- A swipe must **start from an open hand**. The flick back usually starts from a different shape
+  (thumb folded, little finger curled), so it never counts; the return lockout below is the backstop.
+
+- Starts after **0.12 palm** of sideways travel (≥ 1 × vertical — a flick's arc is diagonal at first). A resting hand's drift keeps
   re-centering the start point, so it never starts a swipe.
 - **Progress = sideways travel / 1.5 palm** (≈ 15 cm per desktop; *Swipe sensitivity* divides it),
   clamped to ±1.2, streamed every frame and eased at ~125 Hz by the router.
-- **Letting go** (the trackpad "lift"): the hand closes or drops out of `openHand` for > 0.12 s, holds
-  still for 0.3 s, finishes a flick (peak ≥ 1.7 desktops/s, decelerated below 30 %), leaves view, or 4 s pass.
+- **Fast strokes switch instantly, mid-stroke:** moving ≥ 1.45 desktops/s (≈ 2.2 palm/s) once past 0.18
+  of a desktop (≈ 0.27 palm), possibly on the very first frame. With the default *Instant* finish the desktop lands immediately.
+- **Letting go** (the trackpad "lift"): the hand closes or drops out of `openHand` for > 0.12 s (0.35 s
+  while moving fast — motion blur hides the fingers), holds still for 0.3 s, finishes a flick (peak
+  ≥ 1.7 desktops/s, decelerated below 30 %), leaves view, or 4 s pass.
 - **Decision:** switch if |progress| ≥ 0.5, or if moving ≥ 1 desktop/s toward the target at release
   (≥ 0.15), or after a flick; never while moving ≥ 1 desktop/s back toward the start.
 - After a release the hand must settle (0.1 s) or reverse before a new swipe starts; a swipe opposite to
-  a switch is ignored for 0.9 s (the return stroke), so hopping several desktops works without pausing.
+  the last one (switched or not, if it moved ≥ 0.1 of a desktop) is ignored for 0.9 s — the return
+  stroke — so hopping several desktops works without pausing.
 
 Direction: by default hand → right drags toward the desktop on the right; *natural* makes the desktop
 follow the hand (like a trackpad).

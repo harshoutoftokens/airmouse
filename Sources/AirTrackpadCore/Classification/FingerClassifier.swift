@@ -180,6 +180,20 @@ public enum FingerClassifier {
             }
         }
 
+        // Fingertip center for swipes: only from tips that were actually seen, and only when at
+        // least three were (blurred tips are dropped or extrapolated by Vision).
+        let tipJoints: [JointName] = [.indexTip, .middleTip, .ringTip, .littleTip]
+        let seenTips = tipJoints.compactMap { hand.observed($0) }
+        var fingertipCenter: Landmark?
+        if seenTips.count >= 3 {
+            let n = Double(seenTips.count)
+            fingertipCenter = Landmark(
+                x: seenTips.reduce(0) { $0 + $1.x } / n,
+                y: seenTips.reduce(0) { $0 + $1.y } / n,
+                confidence: seenTips.map(\.confidence).min() ?? 0
+            )
+        }
+
         return HandMetrics(
             timestamp: hand.timestamp,
             extendedFingerCount: extendedCount,
@@ -192,7 +206,8 @@ public enum FingerClassifier {
             cursorAnchor: cursorAnchor,
             fingerReach: reach,
             pinchTracked: pinchTracked,
-            middlePinchTracked: middlePinchTracked
+            middlePinchTracked: middlePinchTracked,
+            fingertipCenter: fingertipCenter
         )
     }
 }
