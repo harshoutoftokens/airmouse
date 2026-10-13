@@ -230,6 +230,10 @@ public struct DebugHUDView: View {
         .background(Color(NSColor.windowBackgroundColor).opacity(0.7))
     }
 
+    /// Typed explicitly: passed straight to `String(format:)`, a bare `?? 0` is inferred as an
+    /// `Int` CVarArg when no hand is visible, which `%.2f` misreads.
+    private var pinchReading: Double { appState.metrics?.pinchDistance ?? 0 }
+
     private var footer: some View {
         HStack(spacing: 20) {
             MetricCard(title: "POSE", value: poseLabel(appState.pose), color: .green)
@@ -238,7 +242,7 @@ public struct DebugHUDView: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
                 HStack(spacing: 6) {
-                    Text(String(format: "%.2f", appState.metrics?.pinchDistance ?? 0))
+                    Text(String(format: "%.2f", pinchReading))
                         .font(.system(size: 16, weight: .semibold, design: .monospaced))
                         .foregroundColor(.orange)
                     ProgressView(value: appState.pinchProgress)
