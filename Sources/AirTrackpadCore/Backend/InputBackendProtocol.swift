@@ -30,6 +30,10 @@ public protocol InputBackendProtocol: AnyObject, Sendable {
     /// Continuous (pixel) scroll. `deltaY > 0` moves content down, `deltaX > 0` moves it right.
     func scroll(deltaX: Double, deltaY: Double, phase: ScrollEventPhase, momentumPhase: ScrollMomentumPhase)
     func switchSpace(direction: SwipeDirection)
+    /// Interactive desktop swipe (see `AbstractGestureEvent.desktopSwipeBegan`).
+    func beginDesktopSwipe()
+    func updateDesktopSwipe(progress: Double)
+    func endDesktopSwipe(progress: Double, commit: Bool)
     func triggerMissionControl()
     func emergencyRelease()
 }

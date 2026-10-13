@@ -102,8 +102,22 @@ extension Array where Element == AbstractGestureEvent {
     var clicks: [Int] {
         compactMap { if case .leftClick(let c) = $0 { return c } else { return nil } }
     }
+    /// Desktop switches: one-shot switches plus committed interactive swipes.
     var switches: [SwipeDirection] {
-        compactMap { if case .switchSpace(let d) = $0 { return d } else { return nil } }
+        compactMap {
+            switch $0 {
+            case .switchSpace(let d): return d
+            case .desktopSwipeEnded(let p, true): return p >= 0 ? .right : .left
+            default: return nil
+            }
+        }
+    }
+    /// Interactive swipes that ended without switching.
+    var cancelledSwipes: Int {
+        filter { if case .desktopSwipeEnded(_, false) = $0 { return true } else { return false } }.count
+    }
+    var swipeProgress: [Double] {
+        compactMap { if case .desktopSwipeChanged(let p) = $0 { return p } else { return nil } }
     }
     var pointerTotal: CGVector {
         var dx = 0.0, dy = 0.0

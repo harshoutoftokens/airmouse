@@ -47,12 +47,18 @@ public final class ActionRouter: @unchecked Sendable {
     private var momentumVX = 0.0
     private var momentumVY = 0.0
 
+    private var desktopSwipeActive = false
+    private var desktopTarget = 0.0
+    private var desktopShown = 0.0
+
     /// Pointer easing time constant.
     private let pointerTau: Double = 0.012
     /// Scroll easing time constant.
     private let scrollTau: Double = 0.030
     /// Momentum decay time constant (≈ trackpad inertia).
     private let momentumTau: Double = 0.33
+    /// Desktop-drag easing time constant.
+    private let desktopTau: Double = 0.035
 
     public init(backend: InputBackendProtocol, smoothing: Bool = false) {
         self.backend = backend
@@ -184,6 +190,32 @@ public final class ActionRouter: @unchecked Sendable {
 
         case .switchSpace(let direction):
             backend.switchSpace(direction: direction)
+
+        case .desktopSwipeBegan:
+            if desktopSwipeActive {
+                backend.endDesktopSwipe(progress: desktopShown, commit: false)
+            }
+            desktopSwipeActive = true
+            desktopTarget = 0
+            desktopShown = 0
+            backend.beginDesktopSwipe()
+
+        case .desktopSwipeChanged(let progress):
+            guard desktopSwipeActive else { break }
+            desktopTarget = progress
+            if smoothing {
+                startTimer()
+            } else {
+                desktopShown = progress
+                backend.updateDesktopSwipe(progress: progress)
+            }
+
+        case .desktopSwipeEnded(let progress, let commit):
+            guard desktopSwipeActive else { break }
+            desktopSwipeActive = false
+            desktopTarget = progress
+            desktopShown = progress
+            backend.endDesktopSwipe(progress: progress, commit: commit)
 
         case .triggerMissionControl:
             backend.triggerMissionControl()
@@ -344,6 +376,17 @@ public final class ActionRouter: @unchecked Sendable {
             pendingMotion = .zero
         }
 
+        // Desktop drag easing
+        if desktopSwipeActive {
+            let gap = desktopTarget - desktopShown
+            if abs(gap) > 1e-4 {
+                let k = 1.0 - exp(-dt / desktopTau)
+                desktopShown = abs(gap) < 0.002 ? desktopTarget : desktopShown + gap * k
+                backend.updateDesktopSwipe(progress: desktopShown)
+                busy = true
+            }
+        }
+
         // Scroll easing
         if scrollActive {
             busy = true
@@ -412,6 +455,10 @@ public final class ActionRouter: @unchecked Sendable {
     // MARK: - Safety
 
     private func stopEverything() {
+        if desktopSwipeActive {
+            desktopSwipeActive = false
+            backend.endDesktopSwipe(progress: desktopShown, commit: false)
+        }
         pendingMotion = .zero
         absoluteTarget = nil
         if scrollActive && (scrollStarted || !smoothing) {

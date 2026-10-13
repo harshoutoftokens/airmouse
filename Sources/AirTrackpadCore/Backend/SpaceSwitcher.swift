@@ -118,9 +118,13 @@ public final class SpaceSwitcher: @unchecked Sendable {
         queue.async { [weak self] in self?.performSwitch(direction) }
     }
 
-    private func performSwitch(_ direction: SwipeDirection) {
+    private var effectiveStyle: SpaceSwitchStyle {
         let requested = style
-        let effectiveStyle: SpaceSwitchStyle = (requested != .keyboard && dockSwipeUnavailable) ? .keyboard : requested
+        return (requested != .keyboard && dockSwipeUnavailable) ? .keyboard : requested
+    }
+
+    private func performSwitch(_ direction: SwipeDirection) {
+        let effectiveStyle = self.effectiveStyle
         let now = CACurrentMediaTime()
         let inBurst = now - lastSwitchTime < effectiveStyle.settleTime
         let pointer = CGEvent(source: nil)?.location ?? .zero
@@ -153,6 +157,111 @@ public final class SpaceSwitcher: @unchecked Sendable {
         let generation = verifyGeneration
         queue.asyncAfter(deadline: .now() + effectiveStyle.settleTime) { [weak self] in
             self?.verify(generation: generation, before: before, direction: direction, style: effectiveStyle, pointer: pointer)
+        }
+    }
+
+    // MARK: - Interactive (the desktop follows the hand)
+
+    private struct InteractiveSession {
+        var before: SpaceInfo?
+        var pointer: CGPoint
+        var usesDock: Bool
+        var startedAt: CFTimeInterval
+    }
+
+    private var interactive: InteractiveSession?
+
+    /// Starts a dragged swipe: the desktop follows `updateInteractive` until `endInteractive`.
+    public func beginInteractive() {
+        queue.async { [weak self] in self?.beginInteractiveOnQueue() }
+    }
+
+    public func updateInteractive(progress: Double) {
+        queue.async { [weak self] in
+            guard let self, let session = self.interactive, session.usesDock else { return }
+            self.postInteractive(.changed, progress: progress, velocity: 0)
+        }
+    }
+
+    /// `commit`: complete the switch toward the side `progress` points to; otherwise slide back.
+    public func endInteractive(progress: Double, commit: Bool) {
+        queue.async { [weak self] in self?.endInteractiveOnQueue(progress: progress, commit: commit) }
+    }
+
+    private func beginInteractiveOnQueue() {
+        if let stale = interactive, stale.usesDock {
+            postInteractive(.cancelled, progress: DockSwipeEncoder.minimalProgress, velocity: 0)
+        }
+        let pointer = CGEvent(source: nil)?.location ?? .zero
+        let usesDock = effectiveStyle != .keyboard
+        interactive = InteractiveSession(
+            before: SkyLightSpaces.spaceInfo(at: pointer),
+            pointer: pointer,
+            usesDock: usesDock,
+            startedAt: CACurrentMediaTime()
+        )
+        if usesDock {
+            postInteractive(.began, progress: 0, velocity: 0)
+        }
+    }
+
+    private func endInteractiveOnQueue(progress: Double, commit: Bool) {
+        let direction: SwipeDirection = progress >= 0 ? .right : .left
+        guard let session = interactive else {
+            if commit { performSwitch(direction) }
+            return
+        }
+        interactive = nil
+        guard session.usesDock else {
+            // Keyboard style can't follow the hand; just switch on release.
+            if commit { performSwitch(direction) }
+            return
+        }
+        // A release at exactly zero progress moves the wrong way on macOS 26; never send one.
+        let side: Double = direction == .right ? 1 : -1
+        let p = abs(progress) < DockSwipeEncoder.minimalProgress ? side * DockSwipeEncoder.minimalProgress : progress
+
+        let style = effectiveStyle
+        let now = CACurrentMediaTime()
+        let inBurst = now - lastSwitchTime < style.settleTime
+        var current = session.before?.currentIndex
+        if inBurst, let predicted = predictedIndex, predictedDisplay == session.before?.displayIdentifier {
+            current = predicted
+        }
+        var blocked = false
+        if let info = session.before, let current {
+            blocked = direction == .left ? current <= 0 : current + 1 >= info.count
+        }
+        guard commit, !blocked else {
+            postInteractive(.cancelled, progress: p, velocity: 0)
+            if commit { onResult?(.blockedAtEdge(direction)) }
+            return
+        }
+
+        postInteractive(.ended, progress: p, velocity: side * (style.dockSwipeVelocity ?? 40))
+        lastSwitchTime = now
+        predictedIndex = current.map { $0 + (direction == .right ? 1 : -1) }
+        predictedDisplay = session.before?.displayIdentifier
+        verifyGeneration += 1
+        guard !inBurst, let before = session.before else {
+            onResult?(.switched(direction))
+            return
+        }
+        let generation = verifyGeneration
+        let pointer = session.pointer
+        queue.asyncAfter(deadline: .now() + style.settleTime) { [weak self] in
+            self?.verify(generation: generation, before: before, direction: direction, style: style, pointer: pointer)
+        }
+    }
+
+    /// Posts one dragged-swipe event; `progress` / `velocity` are in desktop terms
+    /// (positive = toward the desktop on the right).
+    private func postInteractive(_ phase: DockPhase, progress: Double, velocity: Double) {
+        if osMajor >= 27 {
+            let sign = SpaceSwitcher.modernSign(.right) * signCorrection
+            DockSwipeEncoder.postModern(phase: phase, sign: progress >= 0 ? sign : -sign, progress: sign * progress)
+        } else {
+            DockSwipeEncoder.postLegacy(phase: phase, progress: signCorrection * progress, velocity: signCorrection * velocity)
         }
     }
 
@@ -250,6 +359,53 @@ public final class SpaceSwitcher: @unchecked Sendable {
         return "\(style.rawValue) \(direction.rawValue): space \(b) → \(a)  \(verdict)"
     }
 
+    /// Probes how the Dock treats a *dragged* swipe (macOS ≤ 26 encoding): drags the desktop
+    /// part-way with real progress values, releases with a given velocity, and reports whether
+    /// it committed or snapped back. Every committed move is undone, so it ends where it began.
+    public func diagnoseInteractive() -> [String] {
+        let pointer = CGEvent(source: nil)?.location ?? .zero
+        guard let start = SkyLightSpaces.spaceInfo(at: pointer) else { return ["interactive: Space list unavailable"] }
+        let dir: Double = start.canMove(.right) ? 1 : -1
+        // peak: how far the drag goes; end: progress at release; endPhase 8 = cancelled.
+        let cases: [(peak: Double, end: Double, velocity: Double, endPhase: Int64)] = [
+            (0.30, 0.0, 0, 4), (0.30, 0.02, 0, 4), (0.05, 0.05, 0, 4), (0.12, 0.12, 0, 4),
+            (0.30, 0.30, 0, 8), (0.30, 0.30, -2000, 4), (0.30, 0.30, -0.3, 4)
+        ]
+        var lines = ["interactive (direction \(dir > 0 ? "right" : "left")):"]
+        for c in cases {
+            guard let before = SkyLightSpaces.spaceInfo(at: pointer) else { break }
+            DockSwipeEncoder.postLegacy(phase: .began, progress: 0, velocity: 0)
+            let steps = 20
+            for i in 1...steps {
+                Thread.sleep(forTimeInterval: 0.016)
+                DockSwipeEncoder.postLegacy(phase: .changed, progress: dir * c.peak * Double(i) / Double(steps), velocity: 0)
+            }
+            for i in 1...10 {
+                Thread.sleep(forTimeInterval: 0.016)
+                let p = c.peak + (c.end - c.peak) * Double(i) / 10
+                DockSwipeEncoder.postLegacy(phase: .changed, progress: dir * p, velocity: 0)
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+            if let e = DockSwipeEncoder.makeLegacy(phase: .ended, progress: dir * c.end, velocity: dir * c.velocity) {
+                e.setIntegerValueField(DockSwipeEncoder.gesturePhase, value: c.endPhase)
+                e.post(tap: .cgSessionEventTap)
+            }
+            Thread.sleep(forTimeInterval: 1.3)
+            let after = SkyLightSpaces.spaceInfo(at: pointer)
+            let moved = (after?.currentIndex ?? before.currentIndex) - before.currentIndex
+            let verdict = moved == 0 ? "snapped back" : (Double(moved) == dir ? "COMMITTED" : "moved \(moved)")
+            lines.append(String(format: "  peak %.2f end %.2f velocity %+7.1f phase %lld → %@", c.peak, c.end, c.velocity, c.endPhase, verdict))
+            if moved != 0 {
+                let back: Double = moved > 0 ? -1 : 1
+                for phase in [DockPhase.began, .changed, .ended] {
+                    DockSwipeEncoder.postLegacy(phase: phase, sign: back, velocity: 40)
+                }
+                Thread.sleep(forTimeInterval: 1.2)
+            }
+        }
+        return lines
+    }
+
     // MARK: - Event posting
 
     private func post(_ direction: SwipeDirection, style: SpaceSwitchStyle) {
@@ -310,6 +466,9 @@ enum DockPhase: Int64 {
     case began = 1
     case changed = 2
     case ended = 4
+    /// Measured on macOS 26: an `ended` release always completes the switch, whatever its
+    /// progress or velocity; `cancelled` slides the desktop back.
+    case cancelled = 8
 }
 
 /// Builds synthetic Dock-swipe events.
@@ -341,14 +500,20 @@ enum DockSwipeEncoder {
 
     /// macOS ≤ 26 encoding.
     static func makeLegacy(phase: DockPhase, sign: Double, velocity: Double) -> CGEvent? {
+        makeLegacy(phase: phase, progress: sign * minimalProgress, velocity: sign * velocity)
+    }
+
+    /// macOS ≤ 26 encoding with an explicit progress (fraction of a desktop; positive = toward
+    /// the desktop on the right) — what a trackpad sends while the fingers drag the desktop.
+    static func makeLegacy(phase: DockPhase, progress: Double, velocity: Double) -> CGEvent? {
         guard let event = CGEvent(source: nil) else { return nil }
         event.setIntegerValueField(eventType, value: kCGSEventDockControl)
         event.setIntegerValueField(gestureHIDType, value: kIOHIDEventTypeDockSwipe)
         event.setIntegerValueField(gesturePhase, value: phase.rawValue)
-        event.setDoubleValueField(swipeProgress, value: sign * minimalProgress)
+        event.setDoubleValueField(swipeProgress, value: progress)
         event.setIntegerValueField(swipeMotion, value: kGestureMotionHorizontal)
-        event.setDoubleValueField(swipeVelocityX, value: sign * velocity)
-        event.setDoubleValueField(swipeVelocityY, value: sign * velocity)
+        event.setDoubleValueField(swipeVelocityX, value: velocity)
+        event.setDoubleValueField(swipeVelocityY, value: velocity)
         return event
     }
 
@@ -356,15 +521,19 @@ enum DockSwipeEncoder {
         makeLegacy(phase: phase, sign: sign, velocity: velocity)?.post(tap: .cgSessionEventTap)
     }
 
+    static func postLegacy(phase: DockPhase, progress: Double, velocity: Double) {
+        makeLegacy(phase: phase, progress: progress, velocity: velocity)?.post(tap: .cgSessionEventTap)
+    }
+
     /// macOS 27+ encoding (port of InstantSpaceSwitcher's augmented event): the dock-control
     /// event carrying its IOHID payload, plus the companion gesture event the Dock requires.
-    static func makeModern(phase: DockPhase, sign: Double) -> (event: CGEvent, companion: CGEvent)? {
+    static func makeModern(phase: DockPhase, sign: Double, progress: Double? = nil) -> (event: CGEvent, companion: CGEvent)? {
         guard let event = CGEvent(source: nil) else { return nil }
         event.setIntegerValueField(eventType, value: kCGSEventDockControl)
         event.setIntegerValueField(gestureHIDType, value: kIOHIDEventTypeDockSwipe)
         event.setIntegerValueField(gesturePhase, value: phase.rawValue)
         event.setIntegerValueField(swipeMotion, value: kGestureMotionHorizontal)
-        event.setDoubleValueField(swipeProgress, value: sign * minimalProgress)
+        event.setDoubleValueField(swipeProgress, value: progress ?? sign * minimalProgress)
         event.setIntegerValueField(gesturePhaseAlias, value: phase.rawValue)
         event.setDoubleValueField(zoomDeltaY, value: 3.0)
         event.setDoubleValueField(sourcePIDAlias, value: Double(mach_absolute_time()))
@@ -380,8 +549,8 @@ enum DockSwipeEncoder {
         return (augmented, companion)
     }
 
-    static func postModern(phase: DockPhase, sign: Double) {
-        guard let pair = makeModern(phase: phase, sign: sign) else { return }
+    static func postModern(phase: DockPhase, sign: Double, progress: Double? = nil) {
+        guard let pair = makeModern(phase: phase, sign: sign, progress: progress) else { return }
         pair.event.post(tap: .cgSessionEventTap)
         pair.companion.post(tap: .cgSessionEventTap)
     }

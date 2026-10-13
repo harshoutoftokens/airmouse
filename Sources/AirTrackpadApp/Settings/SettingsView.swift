@@ -174,23 +174,23 @@ public struct SettingsView: View {
             Section(header: Text("Switch Desktops (🖐 swipe ← →)").font(.headline)) {
                 Toggle("Enable desktop swipes", isOn: $settings.swipeEnabled)
                 Picker("Direction", selection: $settings.naturalSwipeDirection) {
-                    Text("Swipe right → desktop on the right").tag(false)
-                    Text("Natural: swipe right → desktop on the left (like a trackpad)").tag(true)
+                    Text("Hand right → desktop on the right").tag(false)
+                    Text("Natural: the desktop follows your hand (like a trackpad)").tag(true)
                 }
                 labeledSlider("Swipe sensitivity", value: $settings.swipeSensitivity, range: 0.6...1.6, format: "%.2f",
-                              hint: "Higher accepts shorter, slower swipes. Lower if desktops switch when you just move your hand.")
-                Picker("Transition", selection: $settings.spaceSwitchStyle) {
+                              hint: "Higher: less hand travel drags a whole desktop. Lower if the desktop moves when you just reposition your hand.")
+                Picker("Finish", selection: $settings.spaceSwitchStyle) {
                     Text("Animated slide").tag(SpaceSwitchStyle.animated)
                     Text("Fast slide").tag(SpaceSwitchStyle.fast)
                     Text("Instant").tag(SpaceSwitchStyle.instant)
-                    Text("Keyboard shortcut (⌃← / ⌃→)").tag(SpaceSwitchStyle.keyboard)
+                    Text("Keyboard shortcut (⌃← / ⌃→, no live slide)").tag(SpaceSwitchStyle.keyboard)
                 }
                 HStack {
                     Text("Test:")
                     Button("◀︎ Previous") { NotificationCenter.default.post(name: .airTrackpadTestSwitch, object: SwipeDirection.left) }
                     Button("Next ▶︎") { NotificationCenter.default.post(name: .airTrackpadTestSwitch, object: SwipeDirection.right) }
                 }
-                Text("Open your hand (all fingers up), then make one quick sideways swipe. Bringing the hand back is ignored for about a second, so it won't undo the switch.")
+                Text("Open your hand (all four fingers up) and move it sideways: the desktop follows, like three fingers on the trackpad. Let go by closing your hand, holding still or flicking — past halfway (or with a flick) it switches, otherwise it slides back. Bringing your hand back afterwards is ignored.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

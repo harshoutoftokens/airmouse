@@ -17,6 +17,9 @@ public final class MockInputBackend: InputBackendProtocol, @unchecked Sendable {
     public private(set) var mouseEvents: [String] = []
     public private(set) var scrollEvents: [ScrollRecord] = []
     public private(set) var spaceSwitches: [SwipeDirection] = []
+    /// Interactive swipe log: "began", progress updates as "p=0.42", "commit"/"cancel".
+    public private(set) var desktopSwipeLog: [String] = []
+    public private(set) var desktopSwipeProgress: [Double] = []
     public private(set) var missionControlCount: Int = 0
     public private(set) var isMouseDown: Bool = false
 
@@ -86,6 +89,27 @@ public final class MockInputBackend: InputBackendProtocol, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         spaceSwitches.append(direction)
+    }
+
+    public func beginDesktopSwipe() {
+        lock.lock()
+        defer { lock.unlock() }
+        desktopSwipeLog.append("began")
+    }
+
+    public func updateDesktopSwipe(progress: Double) {
+        lock.lock()
+        defer { lock.unlock() }
+        desktopSwipeProgress.append(progress)
+    }
+
+    public func endDesktopSwipe(progress: Double, commit: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        desktopSwipeLog.append(commit ? "commit" : "cancel")
+        if commit {
+            spaceSwitches.append(progress >= 0 ? .right : .left)
+        }
     }
 
     public func triggerMissionControl() {

@@ -31,7 +31,13 @@ public enum AbstractGestureEvent: Sendable, Equatable {
     case scroll(deltaX: Double, deltaY: Double, phase: ScrollPhase)
     /// Stops inertial scrolling — the equivalent of touching a trackpad (sent when a pinch lands).
     case cancelMomentum
+    /// One-shot desktop switch (menu test items).
     case switchSpace(direction: SwipeDirection)
+    /// Interactive desktop swipe: the desktop follows `progress` (fraction of a desktop,
+    /// positive = toward the desktop on the right) until it ends, then switches or snaps back.
+    case desktopSwipeBegan
+    case desktopSwipeChanged(progress: Double)
+    case desktopSwipeEnded(progress: Double, commit: Bool)
     case triggerMissionControl
     case trackingPaused
     case trackingResumed

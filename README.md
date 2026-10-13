@@ -18,7 +18,7 @@ Built in Swift 6 for Apple Silicon. Everything runs on-device; no images are sto
 | 🤏 **Drag** | Pinch, then move — or pinch and hold still ~0.45 s | Mouse down → drag → let go to drop |
 | 🤌 **Right-click** | Thumb–middle pinch (index stays away) | Right click / context menu |
 | ✌ **Scroll** | Index + middle up, move hand up/down (or sideways) | Smooth trackpad scrolling with momentum |
-| 🖐 **Switch desktop** | All four fingers up, one quick sideways swipe | Next / previous Space. Bringing the hand back is ignored |
+| 🖐 **Switch desktop** | All four fingers up, move sideways — the desktop follows your hand live. Let go (close the hand, hold still, or flick) | Past halfway or flicked → next / previous Space; otherwise it slides back. Bringing the hand back is ignored |
 | 🖐→🤏→🖐 **Mission Control** | Open palm, gather all fingertips together, open again | Mission Control |
 
 A ring follows the pointer while AirTrackpad is in control: it tightens as your fingers close,
@@ -42,9 +42,13 @@ detector also accepted slow drifts, and re-armed after 0.4 s, so the hand's retu
 - After each switch the app checks which Space it actually landed on. If the direction was inverted on
   this machine it self-corrects (and remembers); if swipes have no effect it falls back to the keyboard shortcut.
 - At the first/last desktop the swipe is blocked with a red flash instead of a rubber-band bounce.
-- Swipes now need a fast stroke (peak speed + distance + sideways dominance) measured on the palm
-  center, which survives motion blur. The **opposite direction is locked for ~1 s**, so returning the hand
-  can't undo the switch; the same direction re-arms quickly for hopping several desktops.
+- **The desktop follows your hand, like three fingers on the trackpad.** Progress streams to the Dock
+  every frame (eased at ~125 Hz). Letting go — closing the hand, holding still, a flick, or the hand
+  leaving view — switches when you're past halfway or flicked, and slides back otherwise. (Measured on
+  macOS 26: the Dock completes every synthetic "ended" release, so AirTrackpad makes the threshold
+  decision itself and sends "cancelled" to slide back.)
+- Direction is decided at release by where the hand ended, so a wind-up only makes the desktop peek.
+  After a switch the return stroke is ignored for ~0.9 s; hopping several desktops needs no pause.
 
 **Pinch, click & drag.**
 - "Pinch distance" also counted index↔middle proximity, so the ✌ scroll pose clicked. It is now thumb–index only.
@@ -82,8 +86,8 @@ Requirements: macOS 13+ on Apple Silicon, Xcode 16+ (Swift 6).
 ```bash
 make setup-cert   # once: local signing identity so permissions survive rebuilds
 make run          # release build → AirTrackpad.app → launch
-make test         # 119 headless unit / replay / regression tests
-make logs         # live log of swipes, clicks, drags and desktop-switch results
+make test         # 128 headless unit / replay / regression tests
+make logs         # live log of swipes (commit/cancel, progress, why), clicks, drags, switch results
 ```
 
 On first launch grant **Camera** and **Accessibility** (System Settings → Privacy & Security). The menu bar

@@ -100,32 +100,36 @@ final class PoseClassifierTests: XCTestCase {
     }
 }
 
-final class SwipeDetectorTests: XCTestCase {
-    func testStrokeMeasurements() {
-        var d = SwipeDetector()
-        var stroke: SwipeStroke?
-        for i in 0..<12 {
-            let x = i < 4 ? 0.4 : 0.4 + Double(i - 3) * 0.03
-            if let s = d.update(pose: .openHand, palm: Landmark(x: x, y: 0.4), scale: 0.15, timestamp: Double(i) / 30.0) {
-                stroke = s
-                break
-            }
+final class DesktopSwipeTrackerTests: XCTestCase {
+    private func run(_ d: inout DesktopSwipeTracker, xs: [Double], start: Double = 0) -> [DesktopSwipeUpdate] {
+        var out: [DesktopSwipeUpdate] = []
+        for (i, x) in xs.enumerated() {
+            out += d.update(pose: .openHand, palm: Landmark(x: x, y: 0.4), scale: 0.15, timestamp: start + Double(i) / 30.0)
         }
-        XCTAssertEqual(stroke?.direction, .right)
-        XCTAssertGreaterThanOrEqual(stroke?.distance ?? 0, 0.75)
-        XCTAssertGreaterThanOrEqual(stroke?.peakSpeed ?? 0, 2.6)
+        return out
     }
 
-    func testSlowStrokeRejectedAsSlow() {
-        var d = SwipeDetector()
-        var fired = false
-        for i in 0..<40 {
-            let x = 0.3 + Double(i) * 0.008 // 0.24/s = 1.6 palm/s
-            if d.update(pose: .openHand, palm: Landmark(x: x, y: 0.4), scale: 0.15, timestamp: Double(i) / 30.0) != nil {
-                fired = true
-            }
-        }
-        XCTAssertFalse(fired)
+    func testProgressIsPalmTravelOverFullDistance() {
+        var d = DesktopSwipeTracker()
+        let xs = Array(repeating: 0.4, count: 4) + (1...10).map { 0.4 + Double($0) * 0.006 }
+        let updates = run(&d, xs: xs)
+        XCTAssertEqual(updates.first, .began)
+        guard case .changed(let p) = updates.last else { return XCTFail("no progress") }
+        XCTAssertEqual(p, 0.06 / 0.15 / 1.5, accuracy: 0.01)
+    }
+
+    func testReleaseDecision() {
+        var d = DesktopSwipeTracker()
+        _ = run(&d, xs: Array(repeating: 0.4, count: 4) + (1...30).map { 0.4 + Double($0) * 0.006 })
+        XCTAssertEqual(d.finish(at: 2, reason: "test"), .ended(progress: d.lastSummary?.progress ?? 0, commit: true))
+        XCTAssertGreaterThan(d.lastSummary?.progress ?? 0, 0.5)
+    }
+
+    func testNeverReleasesAtZeroProgressAsACommit() {
+        var d = DesktopSwipeTracker()
+        _ = run(&d, xs: Array(repeating: 0.4, count: 4) + (1...6).map { 0.4 + Double($0) * 0.006 })
+        guard case .ended(_, let commit) = d.finish(at: 1, reason: "test") else { return XCTFail() }
+        XCTAssertFalse(commit)
     }
 }
 
