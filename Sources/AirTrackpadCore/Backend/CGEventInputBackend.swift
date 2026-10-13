@@ -107,6 +107,18 @@ public final class CGEventInputBackend: InputBackendProtocol, @unchecked Sendabl
         spaceSwitcher.switchSpace(direction)
     }
 
+    public func beginDesktopSwipe() {
+        spaceSwitcher.beginInteractive()
+    }
+
+    public func updateDesktopSwipe(progress: Double) {
+        spaceSwitcher.updateInteractive(progress: progress)
+    }
+
+    public func endDesktopSwipe(progress: Double, commit: Bool) {
+        spaceSwitcher.endInteractive(progress: progress, commit: commit)
+    }
+
     public func triggerMissionControl() {
         let url = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
         let configuration = NSWorkspace.OpenConfiguration()

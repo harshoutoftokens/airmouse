@@ -32,10 +32,14 @@ public struct GestureConfig: Sendable, Equatable {
 
     // MARK: Desktop swipe (🖐 ← →)
     public var swipeEnabled: Bool = true
-    public var swipeMinDistance: Double = 0.75
-    public var swipeMinPeakSpeed: Double = 2.6
-    public var swipeMaxDuration: TimeInterval = 0.45
-    public var swipeReturnLockout: TimeInterval = 0.95
+    /// Palm lengths of sideways hand travel that drag the desktop one full desktop width.
+    public var swipeFullDistance: Double = 1.5
+    /// Letting go past this fraction of a desktop switches (like the trackpad's halfway point).
+    public var swipeCommitProgress: Double = 0.5
+    /// Progress per second that counts as a flick: switches even short of the halfway point.
+    public var swipeFlickVelocity: Double = 1.7
+    /// After a switch, a swipe back the other way is ignored for this long (return stroke).
+    public var swipeReturnLockout: TimeInterval = 0.9
     /// false: moving the hand right goes to the desktop on the right.
     /// true: content follows the hand like a trackpad (moving right reveals the desktop on the left).
     public var naturalSwipeDirection: Bool = false

@@ -255,9 +255,16 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             case .switchSpace(let direction):
                 actionText = direction == .right ? "Desktop →" : "Desktop ←"
                 flash = direction == .right ? .swipeRight : .swipeLeft
-                if let s = telemetry.lastSwipe {
-                    log.info("swipe \(direction.rawValue, privacy: .public) dist=\(s.distance, format: .fixed(precision: 2)) peak=\(s.peakSpeed, format: .fixed(precision: 2)) dur=\(s.duration, format: .fixed(precision: 3))")
+            case .desktopSwipeEnded(let progress, let commit):
+                let direction = progress >= 0 ? "right" : "left"
+                if commit {
+                    actionText = progress >= 0 ? "Desktop →" : "Desktop ←"
+                    flash = progress >= 0 ? .swipeRight : .swipeLeft
+                } else {
+                    actionText = "Desktop swipe cancelled"
                 }
+                let s = telemetry.lastSwipe
+                log.info("swipe \(direction, privacy: .public) \(commit ? "commit" : "cancel", privacy: .public) progress=\(progress, format: .fixed(precision: 2)) velocity=\(s?.releaseVelocity ?? 0, format: .fixed(precision: 2)) by=\(s?.reason ?? "?", privacy: .public) dur=\(s?.duration ?? 0, format: .fixed(precision: 2))")
             case .triggerMissionControl:
                 actionText = "Mission Control"
                 flash = .missionControl
@@ -284,7 +291,7 @@ public final class TrackingPipelineCoordinator: @unchecked Sendable {
             case .pressed: feedback = .pressed
             case .dragging: feedback = .dragging
             case .scrolling: feedback = .scrolling
-            case .openHand, .missionControlGesture: feedback = .openHand
+            case .openHand, .missionControlGesture, .swipingDesktop: feedback = .openHand
             default: feedback = .hidden
             }
         }

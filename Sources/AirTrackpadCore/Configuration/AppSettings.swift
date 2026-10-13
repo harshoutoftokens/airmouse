@@ -77,8 +77,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         c.naturalScrolling = naturalScrolling
         c.swipeEnabled = swipeEnabled
         let sensitivity = max(0.5, min(2.0, swipeSensitivity))
-        c.swipeMinDistance = 0.75 / sensitivity
-        c.swipeMinPeakSpeed = 2.6 / sensitivity
+        c.swipeFullDistance = 1.5 / sensitivity
         c.naturalSwipeDirection = naturalSwipeDirection
         c.missionControlEnabled = missionControlEnabled
         c.fiveFingerPinchThreshold = fiveFingerPinchThreshold

@@ -169,8 +169,7 @@ final class AppSettingsTests: XCTestCase {
         let easy = s.gestureConfig()
         s.swipeSensitivity = 0.5
         let strict = s.gestureConfig()
-        XCTAssertLessThan(easy.swipeMinDistance, strict.swipeMinDistance)
-        XCTAssertLessThan(easy.swipeMinPeakSpeed, strict.swipeMinPeakSpeed)
+        XCTAssertLessThan(easy.swipeFullDistance, strict.swipeFullDistance)
     }
 }
 

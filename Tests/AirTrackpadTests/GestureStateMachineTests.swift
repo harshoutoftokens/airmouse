@@ -314,12 +314,87 @@ final class GestureStateMachineTests: XCTestCase {
         return h
     }
 
-    /// Fast horizontal stroke: 0.03 normalized per frame ≈ 6 palm lengths per second.
+    /// Fast horizontal stroke (0.03 normalized per frame ≈ 6 palm lengths per second), then the
+    /// hand stops where it ended.
     @discardableResult
-    private func stroke(_ driver: FrameDriver, from x: Double, step: Double, frames: Int = 7) -> [AbstractGestureEvent] {
-        driver.feed(openHand(x: x), frames: frames) { hand, i in
+    private func stroke(_ driver: FrameDriver, from x: Double, step: Double, frames: Int = 7, settle: Int = 6) -> [AbstractGestureEvent] {
+        var out = driver.feed(openHand(x: x), frames: frames) { hand, i in
             hand.palm.x = x + Double(i + 1) * step
         }
+        out += driver.feed(openHand(x: x + Double(frames) * step), frames: settle)
+        return out
+    }
+
+    /// Slow drag to `to` (≈ 1.3 palm lengths per second) — the desktop just follows.
+    @discardableResult
+    private func drag(_ driver: FrameDriver, from x: Double, to end: Double) -> [AbstractGestureEvent] {
+        let step = (end > x ? 1.0 : -1.0) * 0.006
+        let frames = Int((abs(end - x) / 0.006).rounded())
+        return driver.feed(openHand(x: x), frames: frames) { hand, i in
+            hand.palm.x = x + Double(i + 1) * step
+        }
+    }
+
+    private func letGo(_ driver: FrameDriver, at x: Double) -> [AbstractGestureEvent] {
+        var fist = SyntheticHand()
+        fist.fingers = SyntheticHand.fist
+        fist.palm.x = x
+        return driver.feed(fist, frames: 8)
+    }
+
+    func testDesktopFollowsTheHand() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.35), frames: 12)
+        let events = drag(driver, from: 0.35, to: 0.45)
+        XCTAssertEqual(events.count(.desktopSwipeBegan), 1)
+        let progress = events.swipeProgress
+        XCTAssertGreaterThan(progress.count, 8, "an update every frame")
+        XCTAssertEqual(progress, progress.sorted(), "moves steadily with the hand")
+        XCTAssertEqual(progress.last ?? 0, 0.10 / 0.15 / 1.5, accuracy: 0.08)
+        XCTAssertTrue(events.switches.isEmpty, "nothing switches until the hand lets go")
+        XCTAssertEqual(driver.machine.currentState, .swipingDesktop)
+    }
+
+    func testLettingGoPastHalfwaySwitches() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.45) // ≈ 0.67 of a desktop
+        letGo(driver, at: 0.45)
+        XCTAssertEqual(driver.events.switches, [.right])
+    }
+
+    func testLettingGoBeforeHalfwaySnapsBack() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.36) // ≈ 0.27 of a desktop
+        letGo(driver, at: 0.36)
+        XCTAssertTrue(driver.events.switches.isEmpty)
+        XCTAssertEqual(driver.events.cancelledSwipes, 1)
+    }
+
+    func testDraggingBackBeforeLettingGoCancels() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.45)
+        drag(driver, from: 0.45, to: 0.33)
+        letGo(driver, at: 0.33)
+        XCTAssertTrue(driver.events.switches.isEmpty)
+        XCTAssertEqual(driver.events.cancelledSwipes, 1)
+    }
+
+    func testHoldingStillCountsAsLettingGo() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.45)
+        driver.feed(openHand(x: 0.45), frames: 15)
+        XCTAssertEqual(driver.events.switches, [.right])
+    }
+
+    func testFlickShortOfHalfwaySwitches() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.40), frames: 12)
+        stroke(driver, from: 0.40, step: 0.03, frames: 3) // ≈ 0.4 of a desktop, fast
+        XCTAssertEqual(driver.events.switches, [.right])
     }
 
     func testFastSwipeRightSwitchesRight() {
@@ -336,21 +411,31 @@ final class GestureStateMachineTests: XCTestCase {
         XCTAssertEqual(events.switches, [.left])
     }
 
+    // Winding up the other way first only makes the desktop peek; where the hand ends decides.
+    func testWindUpThenSwipeGoesTheIntendedWay() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.45), frames: 12)
+        driver.feed(openHand(x: 0.45), frames: 4) { hand, i in hand.palm.x = 0.45 - Double(i + 1) * 0.01 }
+        stroke(driver, from: 0.41, step: 0.03, frames: 8)
+        XCTAssertEqual(driver.events.switches, [.right])
+    }
+
     func testReturnStrokeDoesNotUndoTheSwitch() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.35), frames: 12)
-        stroke(driver, from: 0.35, step: 0.03)
+        stroke(driver, from: 0.35, step: 0.03, settle: 0)
         // Bring the hand straight back, just as fast.
         stroke(driver, from: 0.56, step: -0.03)
         driver.feed(openHand(x: 0.35), frames: 10)
         XCTAssertEqual(driver.events.switches, [.right], "bringing the hand back must not switch back")
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 1, "nor drag the desktop back")
     }
 
     func testRepeatedSwipesHopMultipleDesktops() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.35), frames: 12)
-        stroke(driver, from: 0.35, step: 0.03)
-        // Relaxed return, then swipe again.
+        stroke(driver, from: 0.35, step: 0.03, settle: 0)
+        // Relaxed return, then swipe again — no pause needed.
         driver.feed(openHand(x: 0.56), frames: 16) { hand, i in hand.palm.x = 0.56 - Double(i) * 0.013 }
         stroke(driver, from: 0.35, step: 0.03)
         XCTAssertEqual(driver.events.switches, [.right, .right])
@@ -365,33 +450,45 @@ final class GestureStateMachineTests: XCTestCase {
         XCTAssertEqual(driver.events.switches, [.right, .left])
     }
 
-    func testSlowSidewaysDriftDoesNotSwitch() {
+    func testRestingHandDriftDoesNotStartASwipe() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.30), frames: 12)
-        driver.feed(openHand(x: 0.30), frames: 60) { hand, i in
-            hand.palm.x = 0.30 + Double(i) * 0.005 // 0.15/s ≈ 1 palm/s
+        driver.feed(openHand(x: 0.30), frames: 90) { hand, i in
+            hand.palm.x = 0.30 + Double(i) * 0.0008 // ≈ 0.16 palm lengths per second
         }
-        XCTAssertTrue(driver.events.switches.isEmpty)
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 0)
     }
 
-    func testVerticalMotionDoesNotSwitch() {
+    func testVerticalMotionDoesNotSwipe() {
         let driver = FrameDriver()
         driver.feed(openHand(), frames: 12)
         driver.feed(openHand(), frames: 8) { hand, i in
             hand.palm.y = 0.3 + Double(i + 1) * 0.03
             hand.palm.x = 0.5 + Double(i + 1) * 0.008
         }
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 0)
         XCTAssertTrue(driver.events.switches.isEmpty)
     }
 
     func testSwipeSurvivesMotionBlurMidStroke() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.35), frames: 12)
-        let events = driver.feed(openHand(x: 0.35), frames: 7) { hand, i in
+        driver.feed(openHand(x: 0.35), frames: 7) { hand, i in
             hand.palm.x = 0.35 + Double(i + 1) * 0.03
             if i == 2 || i == 3 { hand.fingers = [.index, .middle] } // fingers smeared
         }
-        XCTAssertEqual(events.switches, [.right])
+        driver.feed(openHand(x: 0.56), frames: 6)
+        XCTAssertEqual(driver.events.switches, [.right])
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 1)
+    }
+
+    func testHandLostMidSwipeDecidesLikeLettingGo() {
+        let driver = FrameDriver()
+        driver.feed(openHand(x: 0.30), frames: 12)
+        drag(driver, from: 0.30, to: 0.45)
+        driver.feedNoHand(frames: 12)
+        XCTAssertEqual(driver.events.switches, [.right])
+        XCTAssertEqual(driver.machine.currentState, .handLost)
     }
 
     func testOpenHandSweepingIntoViewDoesNotSwitch() {
@@ -400,7 +497,7 @@ final class GestureStateMachineTests: XCTestCase {
         let events = driver.feed(openHand(x: 0.10), frames: 9) { hand, i in
             hand.palm.x = 0.10 + Double(i) * 0.03
         }
-        XCTAssertTrue(events.switches.isEmpty)
+        XCTAssertEqual(events.count(.desktopSwipeBegan), 0)
     }
 
     func testSwipeNeedsAnOpenHand() {
@@ -410,6 +507,7 @@ final class GestureStateMachineTests: XCTestCase {
             hand.palm.x = 0.35 + Double(i + 1) * 0.03
         }
         XCTAssertTrue(driver.events.switches.isEmpty, "a fast pointing motion moves the pointer, it doesn't switch desktops")
+        XCTAssertEqual(driver.events.count(.desktopSwipeBegan), 0)
     }
 
     func testNaturalSwipeDirectionInverts() {
@@ -421,12 +519,13 @@ final class GestureStateMachineTests: XCTestCase {
         driver.feed(openHand(x: 0.35), frames: 12)
         let events = stroke(driver, from: 0.35, step: 0.03)
         XCTAssertEqual(events.switches, [.left])
+        XCTAssertLessThan(events.swipeProgress.last ?? 0, 0, "the desktop follows the hand")
     }
 
     func testNoClickRightAfterSwipe() {
         let driver = FrameDriver()
         driver.feed(openHand(x: 0.35), frames: 12)
-        stroke(driver, from: 0.35, step: 0.03)
+        stroke(driver, from: 0.35, step: 0.03, settle: 0)
         var pinched = SyntheticHand()
         pinched.pinch = 0.08
         driver.feed(pinched, frames: 5)

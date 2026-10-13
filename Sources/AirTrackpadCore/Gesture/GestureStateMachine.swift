@@ -8,6 +8,7 @@ public enum GestureState: String, Sendable, Codable {
     case pressed = "🤏 PRESSED"
     case dragging = "✊ DRAGGING"
     case openHand = "🖐 OPEN HAND"
+    case swipingDesktop = "🖐 SWIPING DESKTOP"
     case missionControlGesture = "🤏 MISSION CONTROL"
     case cooldown = "⏱ COOLDOWN"
     case handLost = "… HAND LOST"
@@ -23,8 +24,9 @@ public struct GestureTelemetry: Sendable {
     public var handSpeed: Double = 0.0
     public var handScale: Double = 0.0
     public var swipeArmed: Bool = false
-    public var swipeRejection: String?
-    public var lastSwipe: SwipeStroke?
+    /// Live drag progress of an interactive desktop swipe (0 when none).
+    public var swipeProgress: Double = 0
+    public var lastSwipe: DesktopSwipeSummary?
     public var fiveFingerPhase: FiveFingerDetector.Phase = .idle
 
     public init() {}
@@ -45,10 +47,11 @@ public final class GestureStateMachine: @unchecked Sendable {
     private var poseStabilizer = PoseStabilizer()
     private var leftPinch = PinchDetector()
     private var rightPinch = PinchDetector()
-    private var swipe = SwipeDetector()
+    private var swipe = DesktopSwipeTracker()
     private var fiveFinger = FiveFingerDetector()
 
     private var handLostSince: TimeInterval?
+    private var lastFrameTime: TimeInterval?
     /// When the current hand came into view (survives short dropouts).
     private var handPresentSince: TimeInterval?
     private var cooldownUntil: TimeInterval = 0
@@ -94,10 +97,11 @@ public final class GestureStateMachine: @unchecked Sendable {
         // right-click pinch a little more room.
         rightPinch.pressThreshold = newConfig.pinchPressThreshold + 0.02
         rightPinch.releaseThreshold = max(newConfig.pinchReleaseThreshold + 0.02, rightPinch.pressThreshold + 0.03)
-        swipe.minDistance = newConfig.swipeMinDistance
-        swipe.minPeakSpeed = newConfig.swipeMinPeakSpeed
-        swipe.maxDuration = newConfig.swipeMaxDuration
-        swipe.oppositeDirectionGap = newConfig.swipeReturnLockout
+        swipe.fullSwipeDistance = newConfig.swipeFullDistance
+        swipe.commitProgress = newConfig.swipeCommitProgress
+        swipe.flickVelocity = newConfig.swipeFlickVelocity
+        swipe.returnLockout = newConfig.swipeReturnLockout
+        swipe.directionSign = newConfig.naturalSwipeDirection ? -1 : 1
         fiveFinger.openThreshold = newConfig.fiveFingerOpenThreshold
         fiveFinger.pinchThreshold = newConfig.fiveFingerPinchThreshold
         fiveFinger.maxSequenceDuration = newConfig.fiveFingerMaxSequenceDuration
@@ -127,6 +131,7 @@ public final class GestureStateMachine: @unchecked Sendable {
     ) -> [AbstractGestureEvent] {
         lock.lock()
         defer { lock.unlock() }
+        lastFrameTime = t
 
         guard hand != nil, let m = metrics else {
             return handleHandLoss(at: t)
@@ -188,7 +193,7 @@ public final class GestureStateMachine: @unchecked Sendable {
         telemetry.handScale = sample.scale
         defer {
             telemetry.swipeArmed = swipe.isArmed
-            telemetry.swipeRejection = swipe.lastRejection
+            telemetry.swipeProgress = swipe.progress
             telemetry.fiveFingerPhase = fiveFinger.phase
         }
 
@@ -202,28 +207,34 @@ public final class GestureStateMachine: @unchecked Sendable {
             return events
         }
 
-        // 5. Desktop swipe. A hand sweeping into view is already moving fast, so swipes only
-        // count once it has been in view for a moment.
-        if t - (handPresentSince ?? t) < 0.3 {
-            swipe.reset()
+        // 5. Desktop swipe: the desktop follows the open hand until it lets go. A hand sweeping
+        // into view is already moving fast, so swipes only start once it has been in view a moment.
+        if t - (handPresentSince ?? t) < 0.3 && !swipe.isActive {
+            swipe.resetTracking()
         }
-        if config.swipeEnabled,
-           let stroke = swipe.update(pose: pose, palm: m.centroid, scale: sample.scale, timestamp: t) {
-            endScroll(&events)
-            let direction: SwipeDirection
-            if config.naturalSwipeDirection {
-                direction = stroke.direction == .right ? .left : .right
-            } else {
-                direction = stroke.direction
+        if config.swipeEnabled {
+            let updates = swipe.update(pose: pose, palm: m.centroid, scale: sample.scale, timestamp: t)
+            if !updates.isEmpty || swipe.isActive {
+                endScroll(&events)
+                fiveFinger.reset()
+                leftPinch.cancel()
+                rightPinch.cancel()
+                currentState = .swipingDesktop
+                for update in updates {
+                    switch update {
+                    case .began:
+                        events.append(.desktopSwipeBegan)
+                    case .changed(let progress):
+                        events.append(.desktopSwipeChanged(progress: progress))
+                    case .ended(let progress, let commit):
+                        events.append(.desktopSwipeEnded(progress: progress, commit: commit))
+                        telemetry.lastSwipe = swipe.lastSummary
+                        cooldownUntil = t + config.gestureCooldown
+                        currentState = .cooldown
+                    }
+                }
+                return events
             }
-            events.append(.switchSpace(direction: direction))
-            telemetry.lastSwipe = stroke
-            fiveFinger.reset()
-            leftPinch.cancel()
-            rightPinch.cancel()
-            cooldownUntil = t + config.gestureCooldown
-            currentState = .cooldown
-            return events
         }
 
         // 6. Mission Control
@@ -232,7 +243,7 @@ public final class GestureStateMachine: @unchecked Sendable {
             if fiveFinger.update(pose: pose, thumbUp: thumbUp, spread: m.spread, timestamp: t) {
                 endScroll(&events)
                 events.append(.triggerMissionControl)
-                swipe.reset()
+                swipe.resetTracking()
                 leftPinch.cancel()
                 rightPinch.cancel()
                 cooldownUntil = t + max(config.gestureCooldown, 0.5)
@@ -512,17 +523,24 @@ public final class GestureStateMachine: @unchecked Sendable {
         if currentState == .dragging {
             events.append(.leftMouseUp)
         }
+        if swipe.isActive {
+            // Hand gone mid-swipe (often swept out of view): decide like letting go.
+            if case .ended(let progress, let commit) = swipe.finish(at: lastFrameTime ?? 0, reason: "hand lost") {
+                events.append(.desktopSwipeEnded(progress: progress, commit: commit))
+            }
+        }
         endScroll(&events)
         currentState = .idle
         handPresentSince = nil
         poseStabilizer.reset()
         leftPinch.reset()
         rightPinch.reset()
-        swipe.reset()
+        swipe.resetTracking()
         fiveFinger.reset()
         cursor.reset()
         previousPose = .none
         telemetry = GestureTelemetry()
+        telemetry.lastSwipe = swipe.lastSummary
         return events
     }
 }

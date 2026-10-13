@@ -72,9 +72,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 lines.append("start: space \(info.currentIndex + 1) of \(info.count) on display \(info.displayIdentifier)")
                 let first: SwipeDirection = info.canMove(.right) ? .right : .left
                 let back: SwipeDirection = first == .right ? .left : .right
-                for style in [SpaceSwitchStyle.animated, .keyboard] {
-                    lines.append(switcher.diagnose(first, style: style))
-                    lines.append(switcher.diagnose(back, style: style))
+                if CommandLine.arguments.contains("--interactive") {
+                    lines += switcher.diagnoseInteractive()
+                } else {
+                    for style in [SpaceSwitchStyle.animated, .keyboard] {
+                        lines.append(switcher.diagnose(first, style: style))
+                        lines.append(switcher.diagnose(back, style: style))
+                    }
                 }
             } else {
                 lines.append("Space list unavailable (SkyLight lookup failed)")

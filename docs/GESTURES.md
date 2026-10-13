@@ -38,7 +38,7 @@ A raw pose must persist for 2 consecutive frames to become stable (3 for pointin
 
 ```
 pressed / dragging  (owns the hand until the pinch opens)
-  > desktop swipe
+  > desktop swipe (owns the hand while the desktop is being dragged)
   > Mission Control
   > cooldown (0.3 s after swipe / 0.5 s after Mission Control)
   > pinch press (left), thumb–middle pinch (right click)
@@ -90,26 +90,33 @@ Starts one frame after the pose stabilizes. Anchor motion in palm lengths × 900
 Natural scrolling (default): content follows the hand. Events carry phases `began → changed → ended`;
 the output stage drains them at ~125 Hz and adds momentum (τ = 0.33 s) after `ended`.
 
-## 7. Desktop swipe (`SwipeDetector`)
+## 7. Desktop swipe (`DesktopSwipeTracker`) — interactive, like the trackpad
 
-Armed after the stable pose has been `openHand` for 2 frames; stays armed 0.35 s through blur dropouts.
-Fires mid-stroke when, within the last 0.45 s of palm-center samples:
+While the stable pose is `openHand` (armed after 2 frames, 0.3 s after the hand appears), the desktop
+follows the palm center:
 
-- horizontal travel ≥ **0.75 palm** (≈ 7–8 cm),
-- peak horizontal speed ≥ **2.6 palm/s**,
-- horizontal ≥ 1.6 × vertical.
+- Starts after **0.12 palm** of sideways travel (≥ 1.3 × vertical). A resting hand's drift keeps
+  re-centering the start point, so it never starts a swipe.
+- **Progress = sideways travel / 1.5 palm** (≈ 15 cm per desktop; *Swipe sensitivity* divides it),
+  clamped to ±1.2, streamed every frame and eased at ~125 Hz by the router.
+- **Letting go** (the trackpad "lift"): the hand closes or drops out of `openHand` for > 0.12 s, holds
+  still for 0.3 s, finishes a flick (peak ≥ 1.7 desktops/s, decelerated below 30 %), leaves view, or 4 s pass.
+- **Decision:** switch if |progress| ≥ 0.5, or if moving ≥ 1 desktop/s toward the target at release
+  (≥ 0.15), or after a flick; never while moving ≥ 1 desktop/s back toward the start.
+- After a release the hand must settle (0.1 s) or reverse before a new swipe starts; a swipe opposite to
+  a switch is ignored for 0.9 s (the return stroke), so hopping several desktops works without pausing.
 
-Lockout: the **opposite direction is blocked for 0.95 s** (return stroke), the same direction for 0.40 s
-(repeat hops allowed). A blocked stroke is swallowed so it can't fire after the lockout ends.
-The sensitivity setting divides both distance and speed thresholds.
-
-Direction: by default hand → right means desktop on the right; *natural* inverts it (like a trackpad).
+Direction: by default hand → right drags toward the desktop on the right; *natural* makes the desktop
+follow the hand (like a trackpad).
 
 ### Dispatch (`SpaceSwitcher`)
 
-- Skips the switch with a red flash at the first/last Space (via `CGSCopyManagedDisplaySpaces`).
-- macOS ≤ 26: three Dock-control events (`began/changed/ended`, field 55 = 30, 110 = 23, 123 = 1),
-  progress ±0.000016, velocity ±40 (animated) / ±80 (fast) / ±2000 (instant); positive = right.
+- At the first/last Space the Dock rubber-bands while dragging; a release there slides back with a red flash (via `CGSCopyManagedDisplaySpaces`).
+- macOS ≤ 26: Dock-control events (field 55 = 30, 110 = 23, 123 = 1). Interactive: `began` (progress 0),
+  `changed` with the live progress, then `ended` (always completes, velocity ±40 / ±80 / ±2000 per
+  *Finish* style) or `cancelled` (phase 8, slides back). Positive = right; a release at exactly 0 moves
+  left, so it is never sent. One-shot switches (menu tests): began/changed/ended at ±0.000016.
+- `open AirTrackpad.app --args --diagnose-spaces --interactive` re-measures the release behaviour.
 - macOS 27+: same fields plus an IOHID fluid-gesture + velocity payload appended to the serialized event,
   a companion gesture event, and a sign read through the natural-scrolling preference.
 - Keyboard style: ⌃← / ⌃→ (Control + Fn + keypad flags, as the shortcut is registered).
