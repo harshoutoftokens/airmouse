@@ -1,6 +1,6 @@
 # AirTrackpad: Architecture & Technical Design Document
 
-**Document Version:** 1.0.0  
+**Document Version:** 1.1.0  
 **Target Architecture:** Apple Silicon Mac (macOS 13+ through 26/27+)  
 **Language:** Swift 6.x (Modern Swift Concurrency, Sendable protocols, Value types)  
 
@@ -18,61 +18,44 @@ AirTrackpad is built from first principles as a **deterministic, low-latency vir
 
 ---
 
-## 2. End-to-End Data Pipeline
+## 2. End-to-End Data Pipeline (v1.1)
 
 ```
 ┌─────────────────────────┐
-│     AVCaptureSession    │  60 FPS / 1280x720 video feed
-└────────────┬────────────┘
-             │ (CMSampleBuffer)
+│     AVCaptureSession    │  Built-in camera preferred, ~720p, native 420v, frame rate pinned
+└────────────┬────────────┘  on the device (30 fps built-in, 60 fps if the camera offers it)
+             │ (CVPixelBuffer)                       Queue: com.airtrackpad.camera
              ▼
 ┌─────────────────────────┐
-│      CameraManager      │  Queue: com.airtrackpad.camera (.userInteractive)
-│  (discards late frames) │  Strict freshness: drops stale frames if busy
-└────────────┬────────────┘
-             │ (CVPixelBuffer)
+│    VisionHandTracker    │  Reused VNDetectHumanHandPoseRequest, ≤ 2 hands, mirrored X,
+└────────────┬────────────┘  low-confidence hands dropped; coordinator follows one hand
+             │ (HandObservation, 21 landmarks)
              ▼
 ┌─────────────────────────┐
-│  HandTrackingProvider   │  Protocol: HandTrackingProvider
-│   (VisionHandTracker)   │  Executes VNDetectHumanHandPoseRequest on ANE/Metal
-└────────────┬────────────┘
-             │ (HandObservation / 21 Landmarks)
+│    FingerClassifier     │  Finger states + reach, robust hand scale, palm center,
+└────────────┬────────────┘  knuckle cursor anchor, thumb–index / thumb–middle pinch
+             │ (HandMetrics)
              ▼
-┌─────────────────────────┐
-│ Landmark Normalization  │  Mirrors X, converts to normalized space [0, 1]
-│   & Hand Scale Normal   │  Calculates palm scale S_hand = dist(wrist, middleMCP)
-└────────────┬────────────┘
-             │ (NormalizedHandFrame)
+┌─────────────────────────┐  PoseClassifier + PoseStabilizer (debounced pose)
+│   GestureStateMachine   │  PinchDetector ×2 (hysteresis, freshness, fist guard)
+│                         │  SwipeDetector (palm-center strokes, direction lockout)
+│                         │  FiveFingerDetector (Mission Control sequence)
+│                         │  CursorEngine (isotropic One Euro, relative/absolute,
+└────────────┬────────────┘  acceleration, emitted-motion history for click rollback)
+             │ (AbstractGestureEvent: pointerDelta/Warp, clicks, scroll+phase, …)
              ▼
-┌─────────────────────────┐
-│   Signal Filter Layer   │  Cursor: OneEuroFilter (minCutoff=1.0Hz, beta=0.007)
-│   (Dual Filter Path)    │  Gestures: Minimal smoothing / direct kinematics
-└────────────┬────────────┘
-             │ (FilteredHandFrame)
+┌─────────────────────────┐  Output queue com.airtrackpad.output, ~125 Hz timer:
+│      ActionRouter       │  pointer easing on the real pointer position, display clamping,
+└────────────┬────────────┘  scroll draining + momentum, click flush, button-state safety
              ▼
-┌─────────────────────────┐
-│ Finger Classifier &     │  Rotation-invariant 3D joint vector angles &
-│ Geometric Analysis      │  distance ratios (Extended, Folded, Uncertain)
-└────────────┬────────────┘
-             │ (FingerStates, ExtCount, Centroid, Spread, PinchDist)
-             ▼
-┌─────────────────────────┐
-│  Gesture State Machine  │  Deterministic temporal state machine with
-│  & Priority Resolver    │  hysteresis, timers, and priority preemption
-└────────────┬────────────┘
-             │ (AbstractGestureEvent stream)
-             ▼
-┌─────────────────────────┐
-│  ActionRouter & Safety  │  SafetyController watchdog for stuck mouse buttons,
-│     Controller          │  Emergency stop (ESC), permission checking
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│   macOS Input Backend   │  Protocol: InputBackendProtocol
-│  (CGEventInputBackend)  │  CGWarpMouseCursorPosition, CGEvent mouse/keyboard
-└─────────────────────────┘
+┌─────────────────────────┐  Quartz events posted once at the HID tap (tagged "AIRT"),
+│   CGEventInputBackend   │  SpaceSwitcher (Dock swipe / ⌃←→, verified + self-correcting),
+└─────────────────────────┘  Mission Control via /System/Applications/Mission Control.app
 ```
+
+Threading: the camera queue owns recognition (settings are applied on it via
+`CameraManager.perform`), the output queue owns all input posting, the Space switcher has its own queue,
+and the UI only reads published snapshots on the main actor.
 
 ---
 

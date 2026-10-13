@@ -17,12 +17,15 @@ ifeq ($(strip $(SIGN_IDENTITY)),)
 SIGN_IDENTITY := -
 endif
 
-.PHONY: all build test bundle run clean setup-cert
+.PHONY: all build release test bundle run clean setup-cert logs
 
 all: build
 
 build:
 	$(SWIFT) build
+
+release:
+	$(SWIFT) build -c release
 
 test:
 	$(SWIFT) test
@@ -30,13 +33,12 @@ test:
 setup-cert:
 	@./scripts/setup_dev_cert.sh
 
-bundle: build
+bundle: release
 	@killall AirTrackpad 2>/dev/null || true
 	@mkdir -p AirTrackpad.app/Contents/MacOS
 	@mkdir -p AirTrackpad.app/Contents/Resources
-	@cp .build/arm64-apple-macosx/debug/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad 2>/dev/null || \
-	 cp .build/debug/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad 2>/dev/null || \
-	 cp .build/out/Products/Debug/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad
+	@cp .build/arm64-apple-macosx/release/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad 2>/dev/null || \
+	 cp .build/release/AirTrackpad AirTrackpad.app/Contents/MacOS/AirTrackpad
 	@cp Info.plist AirTrackpad.app/Contents/Info.plist
 	@if [ "$(SIGN_IDENTITY)" != "-" ]; then \
 		echo "Signing AirTrackpad.app with persistent identity: [$(SIGN_IDENTITY)]"; \
@@ -52,6 +54,10 @@ bundle: build
 run: bundle
 	@sleep 0.5
 	open AirTrackpad.app
+
+# Stream gesture decisions (swipes, clicks, drags, desktop-switch results) from the running app.
+logs:
+	log stream --style compact --predicate 'subsystem == "com.airtrackpad.app"' --level debug
 
 clean:
 	$(SWIFT) package clean

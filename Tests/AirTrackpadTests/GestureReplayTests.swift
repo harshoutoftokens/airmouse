@@ -2,204 +2,163 @@ import XCTest
 @testable import AirTrackpadCore
 
 final class GestureReplayTests: XCTestCase {
-    
-    private func createSyntheticHand(
-        timestamp: TimeInterval,
-        extendedFingers: Int,
-        pinchDist: Double,
-        spread: Double = 0.5,
-        centroidX: Double = 0.5
-    ) -> (HandObservation, HandMetrics) {
-        let wrist = Landmark(x: centroidX, y: 0.1)
-        let middleMCP = Landmark(x: centroidX, y: 0.3)
-        let indexTip = Landmark(x: centroidX, y: 0.5)
-        let thumbTip = Landmark(x: centroidX - pinchDist * 0.2, y: 0.5)
-        
-        let joints: [JointName: Landmark] = [
-            .wrist: wrist,
-            .middleMCP: middleMCP,
-            .indexTip: indexTip,
-            .thumbTip: thumbTip
-        ]
-        
-        let hand = HandObservation(
-            timestamp: timestamp,
-            chirality: .right,
-            confidence: 0.95,
-            joints: joints
-        )
-        
-        var states: [Finger: FingerState] = [:]
-        states[.index] = extendedFingers >= 1 ? .extended : .folded
-        states[.middle] = extendedFingers >= 2 ? .extended : .folded
-        states[.ring] = extendedFingers >= 3 ? .extended : .folded
-        states[.little] = extendedFingers >= 4 ? .extended : .folded
-        states[.thumb] = extendedFingers >= 5 ? .extended : .folded
-        
-        let metrics = HandMetrics(
-            timestamp: timestamp,
-            extendedFingerCount: extendedFingers,
-            fingerStates: states,
-            centroid: indexTip,
-            spread: spread,
-            pinchDistance: pinchDist,
-            handScale: 0.2
-        )
-        
-        return (hand, metrics)
+
+    /// `<repo>/recordings`, resolved from this file so it works from any working directory.
+    static let recordingsDirectory = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("recordings", isDirectory: true)
+
+    // MARK: - Canonical recordings
+
+    private struct Step {
+        var hand: SyntheticHand
+        var frames: Int
+        var change: ((inout SyntheticHand, Int) -> Void)?
     }
-    
-    func testReplayTwoFingerClick() throws {
+
+    /// Builds a deterministic recording (fixed ids, timestamps and date) so the files in
+    /// `recordings/` only change when the gesture definitions do.
+    private static func makeRecording(_ name: String, _ steps: [Step]) -> GestureRecording {
         var frames: [RecordedFrame] = []
-        
-        // Frame 1: 2 fingers open
-        let (h1, m1) = createSyntheticHand(timestamp: 1.0, extendedFingers: 2, pinchDist: 0.4)
-        frames.append(RecordedFrame(timestamp: 1.0, observation: h1, metrics: m1, gestureState: "TWO_FINGER"))
-        
-        // Frame 2: Pinched
-        let (h2, m2) = createSyntheticHand(timestamp: 1.05, extendedFingers: 2, pinchDist: 0.15)
-        frames.append(RecordedFrame(timestamp: 1.05, observation: h2, metrics: m2, gestureState: "PINCH"))
-        
-        // Frame 3: Released
-        let (h3, m3) = createSyntheticHand(timestamp: 1.15, extendedFingers: 2, pinchDist: 0.35)
-        frames.append(RecordedFrame(timestamp: 1.15, observation: h3, metrics: m3, gestureState: "RELEASE"))
-        
-        let recording = GestureRecording(name: "two_finger_click_001", frames: frames)
-        
-        // Save and reload from disk
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("two_finger_click_001.json")
-        try GestureRecorder.save(recording: recording, to: tempURL)
-        let loaded = try GestureRecorder.load(from: tempURL)
-        
-        let sm = GestureStateMachine()
-        let replayEngine = GestureReplayEngine()
-        let events = replayEngine.replayInstantaneous(recording: loaded, stateMachine: sm)
-        
-        XCTAssertEqual(events.count, 1)
-        if case .leftClick = events.first {
-            // Success
-        } else {
-            XCTFail("Expected leftClick during replay")
+        var t = 1.0
+        var index = 0
+        for step in steps {
+            var hand = step.hand
+            for i in 0..<step.frames {
+                step.change?(&hand, i)
+                let (observation, metrics) = hand.frame(at: t)
+                var fixed = observation
+                fixed.id = UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", index))!
+                frames.append(RecordedFrame(timestamp: t, observation: fixed, metrics: metrics, gestureState: name))
+                t += 1.0 / 30.0
+                index += 1
+            }
+        }
+        return GestureRecording(name: name, recordedAt: Date(timeIntervalSince1970: 1_790_000_000), targetFPS: 30, frames: frames)
+    }
+
+    private static var pointing: SyntheticHand { SyntheticHand() }
+    private static var pinched: SyntheticHand { var h = SyntheticHand(); h.pinch = 0.08; return h }
+    private static func open(_ x: Double) -> SyntheticHand {
+        var h = SyntheticHand(); h.fingers = SyntheticHand.openHand; h.palm.x = x; return h
+    }
+    private static func palm(_ spread: Double) -> SyntheticHand {
+        var h = SyntheticHand(); h.fingers = SyntheticHand.openPalm; h.spread = spread; return h
+    }
+
+    static let canonical: [(name: String, recording: GestureRecording)] = [
+        ("two_finger_click_001", makeRecording("two_finger_click_001", [
+            Step(hand: pointing, frames: 8),
+            Step(hand: pinched, frames: 4),
+            Step(hand: pointing, frames: 4)
+        ])),
+        ("two_finger_drag_001", makeRecording("two_finger_drag_001", [
+            Step(hand: pointing, frames: 8),
+            Step(hand: pinched, frames: 4),
+            Step(hand: pinched, frames: 12) { h, i in h.palm.x = 0.5 + Double(i + 1) * 0.008 },
+            Step(hand: { var h = pointing; h.palm.x = 0.596; return h }(), frames: 4)
+        ])),
+        ("four_finger_swipe_right_001", makeRecording("four_finger_swipe_right_001", [
+            Step(hand: open(0.35), frames: 12),
+            Step(hand: open(0.35), frames: 7) { h, i in h.palm.x = 0.35 + Double(i + 1) * 0.03 },
+            Step(hand: open(0.56), frames: 6)
+        ])),
+        ("four_finger_swipe_left_001", makeRecording("four_finger_swipe_left_001", [
+            Step(hand: open(0.65), frames: 12),
+            Step(hand: open(0.65), frames: 7) { h, i in h.palm.x = 0.65 - Double(i + 1) * 0.03 },
+            Step(hand: open(0.44), frames: 6)
+        ])),
+        ("five_finger_mission_control_001", makeRecording("five_finger_mission_control_001", [
+            Step(hand: palm(0.55), frames: 6),
+            Step(hand: palm(0.55), frames: 6) { h, i in h.spread = 0.55 - Double(i + 1) * 0.07 },
+            Step(hand: palm(0.15), frames: 2),
+            Step(hand: palm(0.15), frames: 6) { h, i in h.spread = 0.15 + Double(i + 1) * 0.07 }
+        ]))
+    ]
+
+    private func expectations(for name: String, _ events: [AbstractGestureEvent], file: StaticString = #filePath, line: UInt = #line) {
+        switch name {
+        case "two_finger_click_001":
+            XCTAssertEqual(events.clicks, [1], file: file, line: line)
+        case "two_finger_drag_001":
+            XCTAssertEqual(events.count(.leftMouseDown), 1, file: file, line: line)
+            XCTAssertEqual(events.count(.leftMouseUp), 1, file: file, line: line)
+            XCTAssertGreaterThan(events.pointerTotal.dx, 0, file: file, line: line)
+        case "four_finger_swipe_right_001":
+            XCTAssertEqual(events.switches, [.right], file: file, line: line)
+        case "four_finger_swipe_left_001":
+            XCTAssertEqual(events.switches, [.left], file: file, line: line)
+        case "five_finger_mission_control_001":
+            XCTAssertEqual(events.count(.triggerMissionControl), 1, file: file, line: line)
+        default:
+            XCTFail("no expectations for \(name)", file: file, line: line)
         }
     }
-    
-    func testReplayFourFingerSwipe() throws {
-        var frames: [RecordedFrame] = []
-        
-        for i in 0..<5 {
-            let t = 1.0 + Double(i) * 0.03
-            let x = 0.30 + Double(i) * 0.04 // Moving right from 0.30 to 0.46
-            let (h, m) = createSyntheticHand(timestamp: t, extendedFingers: 4, pinchDist: 0.5, centroidX: x)
-            frames.append(RecordedFrame(timestamp: t, observation: h, metrics: m, gestureState: "4F_SWIPE"))
-        }
-        
-        let recording = GestureRecording(name: "four_finger_swipe_right_001", frames: frames)
-        let sm = GestureStateMachine()
-        let replayEngine = GestureReplayEngine()
-        let events = replayEngine.replayInstantaneous(recording: recording, stateMachine: sm)
-        
-        XCTAssertEqual(events.count, 1)
-        if case .switchSpace(let dir) = events.first {
-            XCTAssertEqual(dir, .right)
-        } else {
-            XCTFail("Expected switchSpace(.right)")
+
+    // MARK: - Tests
+
+    func testCanonicalRecordingsReplay() {
+        for (name, recording) in Self.canonical {
+            let events = GestureReplayEngine().replayInstantaneous(recording: recording, stateMachine: GestureStateMachine())
+            expectations(for: name, events)
         }
     }
-    
-    func testReplayFiveFingerMissionControl() throws {
-        var frames: [RecordedFrame] = []
-        
-        // 1. Open
-        let (h1, m1) = createSyntheticHand(timestamp: 1.0, extendedFingers: 5, pinchDist: 0.5, spread: 0.55)
-        frames.append(RecordedFrame(timestamp: 1.0, observation: h1, metrics: m1, gestureState: "OPEN"))
-        
-        // 2. Contracting
-        let (h2, m2) = createSyntheticHand(timestamp: 1.15, extendedFingers: 5, pinchDist: 0.3, spread: 0.35)
-        frames.append(RecordedFrame(timestamp: 1.15, observation: h2, metrics: m2, gestureState: "CONTRACT"))
-        
-        // 3. Pinch lock
-        let (h3, m3) = createSyntheticHand(timestamp: 1.25, extendedFingers: 5, pinchDist: 0.15, spread: 0.18)
-        frames.append(RecordedFrame(timestamp: 1.25, observation: h3, metrics: m3, gestureState: "LOCKED"))
-        
-        // 4. Expanding
-        let (h4, m4) = createSyntheticHand(timestamp: 1.40, extendedFingers: 5, pinchDist: 0.35, spread: 0.35)
-        frames.append(RecordedFrame(timestamp: 1.40, observation: h4, metrics: m4, gestureState: "EXPAND"))
-        
-        // 5. Open Palm -> Mission Control Trigger
-        let (h5, m5) = createSyntheticHand(timestamp: 1.55, extendedFingers: 5, pinchDist: 0.5, spread: 0.52)
-        frames.append(RecordedFrame(timestamp: 1.55, observation: h5, metrics: m5, gestureState: "TRIGGER"))
-        
-        let recording = GestureRecording(name: "five_finger_mission_control_001", frames: frames)
-        let sm = GestureStateMachine()
-        let replayEngine = GestureReplayEngine()
-        let events = replayEngine.replayInstantaneous(recording: recording, stateMachine: sm)
-        
-        XCTAssertEqual(events.count, 1)
-        if case .triggerMissionControl = events.first {
-            // Success
-        } else {
-            XCTFail("Expected triggerMissionControl")
+
+    func testRecordingsSurviveJSONRoundTrip() throws {
+        let (name, recording) = Self.canonical[0]
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(name)-roundtrip.json")
+        try GestureRecorder.save(recording: recording, to: url)
+        let loaded = try GestureRecorder.load(from: url)
+        let events = GestureReplayEngine().replayInstantaneous(recording: loaded, stateMachine: GestureStateMachine())
+        expectations(for: name, events)
+    }
+
+    func testRecordingsOnDiskReplay() throws {
+        for (name, _) in Self.canonical {
+            let url = Self.recordingsDirectory.appendingPathComponent("\(name).json")
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                XCTFail("missing \(url.lastPathComponent); regenerate with AIRTRACKPAD_EXPORT_RECORDINGS=1 swift test")
+                continue
+            }
+            let recording = try GestureRecorder.load(from: url)
+            let events = GestureReplayEngine().replayInstantaneous(recording: recording, stateMachine: GestureStateMachine())
+            expectations(for: name, events)
         }
     }
-    
+
+    func testReplayThroughRouterDrivesBackend() {
+        let backend = MockInputBackend()
+        let router = ActionRouter(backend: backend)
+        let recording = Self.canonical.first { $0.name == "two_finger_drag_001" }!.recording
+        GestureReplayEngine().replayInstantaneous(recording: recording, stateMachine: GestureStateMachine(), actionRouter: router)
+        XCTAssertEqual(backend.mouseEvents.filter { $0 == "down" }.count, 1)
+        XCTAssertEqual(backend.mouseEvents.filter { $0 == "up" }.count, 1)
+        XCTAssertTrue(backend.mouseEvents.contains("drag"))
+        XCTAssertFalse(backend.isMouseDown)
+    }
+
+    func testLegacyMetricsFormatStillDecodes() throws {
+        let json = """
+        {"timestamp":1,"extendedFingerCount":1,"fingerStates":{"index":"extended","middle":"folded"},
+         "centroid":{"x":0.5,"y":0.5,"z":0,"confidence":1},"spread":0.3,"pinchDistance":0.4,"handScale":0.2}
+        """
+        let metrics = try JSONDecoder().decode(HandMetrics.self, from: Data(json.utf8))
+        XCTAssertEqual(metrics.middlePinchDistance, 1.0)
+        XCTAssertEqual(metrics.cursorAnchor, metrics.centroid)
+        XCTAssertGreaterThan(metrics.reach(for: .index), metrics.reach(for: .middle))
+    }
+
+    /// Regenerates `recordings/*.json`. Opt-in so routine test runs never modify the repo:
+    ///     AIRTRACKPAD_EXPORT_RECORDINGS=1 swift test --filter testExportCanonicalRecordings
     func testExportCanonicalRecordings() throws {
-        let recordingsDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("recordings")
-        try? FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
-        
-        // 1. Two Finger Click
-        var clickFrames: [RecordedFrame] = []
-        let (c1, m1) = createSyntheticHand(timestamp: 1.0, extendedFingers: 2, pinchDist: 0.4)
-        clickFrames.append(RecordedFrame(timestamp: 1.0, observation: c1, metrics: m1, gestureState: "TWO_FINGER"))
-        let (c2, m2) = createSyntheticHand(timestamp: 1.05, extendedFingers: 2, pinchDist: 0.15)
-        clickFrames.append(RecordedFrame(timestamp: 1.05, observation: c2, metrics: m2, gestureState: "PINCH"))
-        let (c3, m3) = createSyntheticHand(timestamp: 1.15, extendedFingers: 2, pinchDist: 0.35)
-        clickFrames.append(RecordedFrame(timestamp: 1.15, observation: c3, metrics: m3, gestureState: "RELEASE"))
-        try GestureRecorder.save(recording: GestureRecording(name: "two_finger_click_001", frames: clickFrames), to: recordingsDir.appendingPathComponent("two_finger_click_001.json"))
-        
-        // 2. Two Finger Drag
-        var dragFrames: [RecordedFrame] = []
-        let (d1, dm1) = createSyntheticHand(timestamp: 1.0, extendedFingers: 2, pinchDist: 0.4)
-        dragFrames.append(RecordedFrame(timestamp: 1.0, observation: d1, metrics: dm1, gestureState: "TWO_FINGER"))
-        let (d2, dm2) = createSyntheticHand(timestamp: 1.05, extendedFingers: 2, pinchDist: 0.15)
-        dragFrames.append(RecordedFrame(timestamp: 1.05, observation: d2, metrics: dm2, gestureState: "PINCH"))
-        let (d3, dm3) = createSyntheticHand(timestamp: 2.00, extendedFingers: 2, pinchDist: 0.15)
-        dragFrames.append(RecordedFrame(timestamp: 2.00, observation: d3, metrics: dm3, gestureState: "DRAGGING"))
-        let (d4, dm4) = createSyntheticHand(timestamp: 2.30, extendedFingers: 2, pinchDist: 0.38)
-        dragFrames.append(RecordedFrame(timestamp: 2.30, observation: d4, metrics: dm4, gestureState: "RELEASE"))
-        try GestureRecorder.save(recording: GestureRecording(name: "two_finger_drag_001", frames: dragFrames), to: recordingsDir.appendingPathComponent("two_finger_drag_001.json"))
-        
-        // 3. Four Finger Swipe Right
-        var swipeRightFrames: [RecordedFrame] = []
-        for i in 0..<5 {
-            let t = 1.0 + Double(i) * 0.03
-            let x = 0.30 + Double(i) * 0.04
-            let (h, m) = createSyntheticHand(timestamp: t, extendedFingers: 4, pinchDist: 0.5, centroidX: x)
-            swipeRightFrames.append(RecordedFrame(timestamp: t, observation: h, metrics: m, gestureState: "4F_SWIPE_RIGHT"))
+        guard ProcessInfo.processInfo.environment["AIRTRACKPAD_EXPORT_RECORDINGS"] == "1" else {
+            throw XCTSkip("set AIRTRACKPAD_EXPORT_RECORDINGS=1 to regenerate recordings/")
         }
-        try GestureRecorder.save(recording: GestureRecording(name: "four_finger_swipe_right_001", frames: swipeRightFrames), to: recordingsDir.appendingPathComponent("four_finger_swipe_right_001.json"))
-        
-        // 4. Four Finger Swipe Left
-        var swipeLeftFrames: [RecordedFrame] = []
-        for i in 0..<5 {
-            let t = 1.0 + Double(i) * 0.03
-            let x = 0.60 - Double(i) * 0.04
-            let (h, m) = createSyntheticHand(timestamp: t, extendedFingers: 4, pinchDist: 0.5, centroidX: x)
-            swipeLeftFrames.append(RecordedFrame(timestamp: t, observation: h, metrics: m, gestureState: "4F_SWIPE_LEFT"))
+        try FileManager.default.createDirectory(at: Self.recordingsDirectory, withIntermediateDirectories: true)
+        for (name, recording) in Self.canonical {
+            try GestureRecorder.save(recording: recording, to: Self.recordingsDirectory.appendingPathComponent("\(name).json"))
         }
-        try GestureRecorder.save(recording: GestureRecording(name: "four_finger_swipe_left_001", frames: swipeLeftFrames), to: recordingsDir.appendingPathComponent("four_finger_swipe_left_001.json"))
-        
-        // 5. Five Finger Mission Control
-        var mcFrames: [RecordedFrame] = []
-        let (mcf1, mcm1) = createSyntheticHand(timestamp: 1.0, extendedFingers: 5, pinchDist: 0.5, spread: 0.55)
-        mcFrames.append(RecordedFrame(timestamp: 1.0, observation: mcf1, metrics: mcm1, gestureState: "OPEN"))
-        let (mcf2, mcm2) = createSyntheticHand(timestamp: 1.15, extendedFingers: 5, pinchDist: 0.3, spread: 0.35)
-        mcFrames.append(RecordedFrame(timestamp: 1.15, observation: mcf2, metrics: mcm2, gestureState: "CONTRACT"))
-        let (mcf3, mcm3) = createSyntheticHand(timestamp: 1.25, extendedFingers: 5, pinchDist: 0.15, spread: 0.18)
-        mcFrames.append(RecordedFrame(timestamp: 1.25, observation: mcf3, metrics: mcm3, gestureState: "LOCKED"))
-        let (mcf4, mcm4) = createSyntheticHand(timestamp: 1.40, extendedFingers: 5, pinchDist: 0.35, spread: 0.35)
-        mcFrames.append(RecordedFrame(timestamp: 1.40, observation: mcf4, metrics: mcm4, gestureState: "EXPAND"))
-        let (mcf5, mcm5) = createSyntheticHand(timestamp: 1.55, extendedFingers: 5, pinchDist: 0.5, spread: 0.52)
-        mcFrames.append(RecordedFrame(timestamp: 1.55, observation: mcf5, metrics: mcm5, gestureState: "TRIGGER"))
-        try GestureRecorder.save(recording: GestureRecording(name: "five_finger_mission_control_001", frames: mcFrames), to: recordingsDir.appendingPathComponent("five_finger_mission_control_001.json"))
     }
 }

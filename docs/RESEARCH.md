@@ -111,6 +111,11 @@ Switching virtual desktops (macOS Spaces) left and right requires triggering the
 - **Latency:** Instantaneous (~1–2 ms from post to WindowServer animation trigger).
 
 #### Approach B: Private `CGEvent` Trackpad Gesture Synthesis
+
+> **Update (October 2026):** this assessment turned out to be wrong for current macOS. Synthetic
+> Dock-swipe events work on macOS 26 (InstantSpaceSwitcher measures against 26.6.2) and, with an extra
+> IOHID payload, on macOS 27. AirTrackpad 1.1 uses them by default and keeps ⌃←/⌃→ as a verified
+> fallback. See §10.
 - **Mechanism:** Injecting undocumented fields onto `CGEvent` to pretend the event originated from an Apple Magic Trackpad with a 4-finger horizontal swipe.
 - **Status:** **PRIVATE / BROKEN.**
 - **Critical Risk:** As documented in recent open-source investigations (`mac-mouse-fix` issue #341, `bobrwm-swipe`), Apple restructured the gesture pipeline in macOS 15/26/27. The old undocumented `CGEvent` fields (`_CGEventSetGestureProgress`, etc.) were deprecated and no longer trigger spaces. Re-enabling synthetic dock swipes now requires undocumented `SLEventSetIOHIDEvent` calls in `SkyLight.framework`.
@@ -271,3 +276,56 @@ The following parameters must be calibrated during initial user testing and expo
 - **Interaction Region Scaling:** Optimal bounding box for camera view (e.g. margin of 15% on each edge) to allow full-screen coverage without arm strain.
 - **Four-Finger Swipe Velocity Floor:** Minimum horizontal speed to distinguish deliberate desktop switch from ambient hand movement.
 - **Pinch Threshold Scaling:** Normalizing pinch distance relative to the hand's palm scale (`wrist` to `middleMCP`) so the gesture works uniformly whether the user sits 40cm or 90cm from the Mac webcam.
+
+
+---
+
+## 10. October 2026 Research Update (AirTrackpad 1.1)
+
+Problems reported with 1.0: desktop swipes "switch but don't move", pinch / pinch-drag unreliable, pointer
+sticky. Sources reviewed and what was taken from each:
+
+### Space switching
+- **[jurplel/InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher)** (MIT, `Sources/ISS/ISS.c`,
+  `event_serialize.c`). Legacy encoding (≤ macOS 26): post `began`, `changed`, `ended` back-to-back on the
+  session tap with field 55 = 30 (DockControl), 110 = 23 (DockSwipe), 132 = phase, 123 = 1 (horizontal),
+  124 = ±0.000016 progress, 129/130 = ±velocity. **The commit comes from velocity**; its old "Animation Speed"
+  presets were 40 / 50 / 60 / 80 (normal → fastest) and ~2000 for instant. Positive = desktop on the right.
+  Fewer than three phases breaks switching while Mission Control is open. Progress `±FLT_TRUE_MIN` (0 in
+  16.16 fixed point) occasionally left destination windows unpainted (issue #58); 0.000016 is the smallest
+  non-zero value. macOS 27: CGEvent gesture fields are ignored; the Dock reads an IOHID fluid-touch-gesture +
+  velocity payload appended to the serialized event (tag 4205), requires a companion type-29 event, and
+  reads the sign through `com.apple.swipescrolldirection`. Space index via `CGSCopyManagedDisplaySpaces`.
+  *Ported to Swift in `SpaceSwitcher.swift`.*
+- **[noah-nuebling/mac-mouse-fix](https://github.com/noah-nuebling/mac-mouse-fix)** (custom licence — read only,
+  no code copied). One Space of horizontal Dock-swipe travel is `1 + 1/(N−1)` progress units for N spaces, which
+  explains why AirTrackpad 1.0's 0.35 progress was only ~30 % of a switch on a 7-Space setup. Exit speed ≈
+  last delta × 100. Under load the Dock can ignore an `ended` event (they re-send it after 0.2/0.5 s).
+- **Diagnosis of 1.0:** sign inverted (`−1` used for right), partial progress, low velocity → partial slide
+  toward the wrong side, snap back; plus the swipe detector re-armed after 0.4 s, so the return stroke
+  triggered the opposite switch.
+- System shortcut ids 79/81 ("Move left/right a space") are registered with modifiers `0x840000`
+  (Control + Fn); posting ⌃+arrow with Control | Fn | keypad flags matches a physical key press.
+
+### Pointer & pinch
+- **[TomYang-TZ/Gstrl](https://github.com/TomYang-TZ/Gstrl)** (MIT, Swift + Vision): cursor driven by the
+  **mean of the four MCP knuckles**, relative ("anchored") motion with gain 2.5 × display, multi-display union
+  via `CGDisplayBounds`, jump rejection. Lessons: dead-zone re-anchoring causes jumps; Vision drops a hand for
+  1–2 frames so state must not reset on a single empty frame; post `mouseMoved` after warping (hover / Dock
+  magnification); use a private event source for keyboard events. Swipes: 0.08 displacement within 0.3 s,
+  direction ratio 2, deceleration check, **1 s cooldown**, 15-frame hand-entry grace.
+- **[ultraleap/TouchFree](https://github.com/ultraleap/TouchFree)** (Apache-2.0): `INDEX_STABLE` tracking point
+  = midpoint of the index MCP and PIP joints; `PositionStabiliser` leash dead zone that **grows as the press
+  approaches** and shrinks afterwards; on press the cursor **locks to the down position until movement exceeds
+  a drag threshold** (10 mm grab / 30 mm air-push), click emitted at the down position. One Euro
+  `minCutoff 0.5, beta 0.1, dCutoff 0.5` (60 Hz, mm units).
+- **PinchPilot** (research prototype, no licence — ideas only): pinch-hold ≈ 0.30 s to drag; double click
+  timed by the system double-click speed; "release to lock, re-pinch to continue" clutch; adaptive
+  (speed-dependent) gain improves small corrections vs. a fixed-gain "classic" mode that swallowed them.
+- **Apple:** `NSCameraReactionEffectGesturesEnabledDefault = NO` stops gesture-triggered video Reactions
+  (✌ → balloons) from being composited into the frames AirTrackpad analyses.
+
+### Hardware facts measured on the development Mac (M2, macOS 26.6.2)
+- Built-in FaceTime HD camera: 15–30 fps at every resolution, native `420v` (no 60 fps mode); an iPhone
+  Continuity Camera offers 60 fps and Center Stage (which re-crops the image — disabled by AirTrackpad).
+- Two displays (built-in 1470×956 pt, external 1366×768 pt above it), 7 Spaces on the main display.

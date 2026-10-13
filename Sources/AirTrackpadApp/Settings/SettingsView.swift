@@ -2,177 +2,249 @@ import SwiftUI
 import AirTrackpadCore
 
 public struct SettingsView: View {
-    @ObservedObject public var appState: AppState
+    /// Written to (HUD preferences), never observed: observing it would re-render Settings on
+    /// every camera frame.
+    public let appState: AppState
     @State private var settings = AppSettings.load()
     @State private var cameraGranted = PermissionsHelper.isCameraAuthorized
     @State private var accessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
-    
+    @State private var cameras: [CameraDescriptor] = CameraManager.availableCameras()
+
     public init(appState: AppState = AppState()) {
         self.appState = appState
     }
-    
+
     public var body: some View {
         TabView {
-            // Tab 1: Permissions & System
-            Form {
-                Section(header: Text("System Permissions").font(.headline)) {
-                    HStack {
-                        Image(systemName: cameraGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundColor(cameraGranted ? .green : .red)
-                        VStack(alignment: .leading) {
-                            Text("Camera Access")
-                                .font(.body.bold())
-                            Text("Required for Vision hand landmark tracking.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        if !cameraGranted {
-                            Button("Open Settings") {
-                                PermissionsHelper.openCameraSettings()
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    
-                    HStack {
-                        Image(systemName: accessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundColor(accessibilityGranted ? .green : .red)
-                        VStack(alignment: .leading) {
-                            Text("Accessibility Permissions")
-                                .font(.body.bold())
-                            Text("Required to synthesize mouse movements, clicks, and Mission Control gestures.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        if !accessibilityGranted {
-                            Button("Grant Access") {
-                                PermissionsHelper.promptAccessibilityPermission()
-                                PermissionsHelper.openAccessibilitySettings()
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                
-                Section(header: Text("Camera & Capture").font(.headline)) {
-                    Picker("Target Frame Rate", selection: $settings.targetFPS) {
-                        Text("30 FPS").tag(Int32(30))
-                        Text("60 FPS").tag(Int32(60))
-                    }
-                    Toggle("Mirror Webcam Horizontally", isOn: $settings.mirrorsHorizontal)
-                    Toggle("Show Camera Video Feed in Debug HUD", isOn: $settings.showCameraFeed)
-                    Toggle("Show FPS & Latency in Debug HUD", isOn: $settings.showPerformanceMetrics)
-                    Toggle("Keep Debug HUD Always on Top (Floating)", isOn: $settings.isAlwaysOnTop)
-                }
-            }
-            .padding()
-            .tabItem {
-                Label("General", systemImage: "gear")
-            }
-            
-            // Tab 2: Cursor & Smoothing
-            Form {
-                Section(header: Text("Cursor Navigation (1-Finger)").font(.headline)) {
-                    VStack(alignment: .leading) {
-                        Text(String(format: "Sensitivity: %.2f", settings.cursorSensitivity))
-                        Slider(value: $settings.cursorSensitivity, in: 0.5...3.0, step: 0.05)
-                    }
-                    VStack(alignment: .leading) {
-                        Text(String(format: "Acceleration Curve: %.2f", settings.cursorAcceleration))
-                        Slider(value: $settings.cursorAcceleration, in: 1.0...1.5, step: 0.05)
-                    }
-                    VStack(alignment: .leading) {
-                        Text(String(format: "Dead-Zone Threshold: %.1f px", settings.cursorDeadzonePixels))
-                        Slider(value: $settings.cursorDeadzonePixels, in: 0.5...4.0, step: 0.1)
-                    }
-                }
-                
-                Section(header: Text("One Euro Filter (Jitter & Latency Tuning)").font(.headline)) {
-                    VStack(alignment: .leading) {
-                        Text(String(format: "Min Cutoff (Stationary Jitter Reduction): %.2f Hz", settings.filterMinCutoff))
-                        Slider(value: $settings.filterMinCutoff, in: 0.1...3.0, step: 0.1)
-                    }
-                    VStack(alignment: .leading) {
-                        Text(String(format: "Beta (High-Speed Lag Elimination): %.4f", settings.filterBeta))
-                        Slider(value: $settings.filterBeta, in: 0.001...0.030, step: 0.001)
-                    }
-                }
-            }
-            .padding()
-            .tabItem {
-                Label("Cursor", systemImage: "cursorarrow")
-            }
-            
-            // Tab 3: Gestures & Timings
-            Form {
-                Section(header: Text("Pinch & Drag (2-Finger)").font(.headline)) {
-                    HStack {
-                        Text(String(format: "Pinch Start: %.2f", settings.pinchStartThreshold))
-                        Slider(value: $settings.pinchStartThreshold, in: 0.10...0.30, step: 0.01)
-                    }
-                    HStack {
-                        Text(String(format: "Pinch Release: %.2f", settings.pinchReleaseThreshold))
-                        Slider(value: $settings.pinchReleaseThreshold, in: 0.20...0.40, step: 0.01)
-                    }
-                    HStack {
-                        Text(String(format: "Drag Hold Delay: %.2fs", settings.dragHoldDelay))
-                        Slider(value: $settings.dragHoldDelay, in: 0.20...0.60, step: 0.05)
-                    }
-                }
-                
-                Section(header: Text("Desktop Switch (4-Finger Swipe)").font(.headline)) {
-                    HStack {
-                        Text(String(format: "Min Velocity: %.2f", settings.swipeMinVelocity))
-                        Slider(value: $settings.swipeMinVelocity, in: 0.2...1.0, step: 0.05)
-                    }
-                    HStack {
-                        Text(String(format: "Min Displacement: %.2f", settings.swipeMinDisplacement))
-                        Slider(value: $settings.swipeMinDisplacement, in: 0.05...0.25, step: 0.01)
-                    }
-                }
-                
-                Section(header: Text("Mission Control (5-Finger Sequence)").font(.headline)) {
-                    HStack {
-                        Text(String(format: "Pinch Spread: %.2f", settings.fiveFingerPinchThreshold))
-                        Slider(value: $settings.fiveFingerPinchThreshold, in: 0.15...0.30, step: 0.01)
-                    }
-                    HStack {
-                        Text(String(format: "Open Spread: %.2f", settings.fiveFingerOpenThreshold))
-                        Slider(value: $settings.fiveFingerOpenThreshold, in: 0.35...0.65, step: 0.01)
-                    }
-                }
-            }
-            .padding()
-            .tabItem {
-                Label("Gestures", systemImage: "hand.raised")
-            }
+            generalTab
+                .tabItem { Label("General", systemImage: "gear") }
+            cursorTab
+                .tabItem { Label("Pointer", systemImage: "cursorarrow.motionlines") }
+            clickScrollTab
+                .tabItem { Label("Click & Scroll", systemImage: "hand.tap") }
+            desktopsTab
+                .tabItem { Label("Desktops", systemImage: "rectangle.split.3x1") }
         }
-        .frame(width: 580, height: 420)
-        .onAppear {
-            settings.showCameraFeed = appState.showCameraFeed
-            settings.showPerformanceMetrics = appState.showPerformanceMetrics
-            settings.isAlwaysOnTop = appState.isAlwaysOnTop
+        .frame(width: 620, height: 560)
+        .onChange(of: settings) { newValue in
+            newValue.save()
+            if appState.showCameraFeed != newValue.showCameraFeed { appState.showCameraFeed = newValue.showCameraFeed }
+            if appState.showPerformanceMetrics != newValue.showPerformanceMetrics { appState.showPerformanceMetrics = newValue.showPerformanceMetrics }
+            if appState.isAlwaysOnTop != newValue.isAlwaysOnTop { appState.isAlwaysOnTop = newValue.isAlwaysOnTop }
         }
-        .onChange(of: settings.showCameraFeed) { newValue in
-            appState.showCameraFeed = newValue
-            settings.save()
+        .onReceive(NotificationCenter.default.publisher(for: AppSettings.didChangeNotification)) { _ in
+            let fresh = AppSettings.load()
+            if fresh != settings { settings = fresh }
         }
-        .onChange(of: settings.showPerformanceMetrics) { newValue in
-            appState.showPerformanceMetrics = newValue
-            settings.save()
-        }
-        .onChange(of: settings.isAlwaysOnTop) { newValue in
-            appState.isAlwaysOnTop = newValue
-            settings.save()
-        }
-        .onDisappear {
-            settings.save()
-        }
-        .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
-            cameraGranted = PermissionsHelper.isCameraAuthorized
-            accessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
+        .task {
+            while !Task.isCancelled {
+                cameraGranted = PermissionsHelper.isCameraAuthorized
+                accessibilityGranted = PermissionsHelper.isAccessibilityAuthorized
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
         }
     }
+
+    // MARK: - General
+
+    private var generalTab: some View {
+        Form {
+            Section(header: Text("Permissions").font(.headline)) {
+                permissionRow(
+                    granted: cameraGranted,
+                    title: "Camera",
+                    detail: "Used only on this Mac to find your hand. Nothing is recorded or uploaded.",
+                    action: PermissionsHelper.openCameraSettings
+                )
+                permissionRow(
+                    granted: accessibilityGranted,
+                    title: "Accessibility",
+                    detail: "Lets AirTrackpad move the pointer, click, scroll and switch desktops.",
+                    action: {
+                        PermissionsHelper.promptAccessibilityPermission()
+                        PermissionsHelper.openAccessibilitySettings()
+                    }
+                )
+            }
+
+            Section(header: Text("Camera").font(.headline)) {
+                Picker("Camera", selection: $settings.cameraDeviceID) {
+                    Text("Automatic (built-in)").tag(String?.none)
+                    ForEach(cameras) { camera in
+                        Text(camera.name).tag(String?.some(camera.id))
+                    }
+                }
+                .onAppear { cameras = CameraManager.availableCameras() }
+                Toggle("Mirror camera (move right → pointer moves right)", isOn: $settings.mirrorsHorizontal)
+            }
+
+            Section(header: Text("Behaviour").font(.headline)) {
+                Toggle("Pause gestures while typing", isOn: $settings.pauseWhileTyping)
+                Toggle("Show feedback ring around the pointer", isOn: $settings.showCursorFeedback)
+                Toggle("Open the live HUD at launch", isOn: $settings.showHUDAtLaunch)
+                Toggle("HUD: show camera image", isOn: $settings.showCameraFeed)
+                Toggle("HUD: show FPS & latency", isOn: $settings.showPerformanceMetrics)
+                Toggle("HUD: keep on top", isOn: $settings.isAlwaysOnTop)
+            }
+
+            Section {
+                HStack {
+                    Spacer()
+                    Button("Restore All Defaults") {
+                        var fresh = AppSettings()
+                        fresh.cameraDeviceID = settings.cameraDeviceID
+                        settings = fresh
+                    }
+                }
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Pointer
+
+    private var cursorTab: some View {
+        Form {
+            Section(header: Text("Pointer Mode").font(.headline)) {
+                Picker("Mode", selection: $settings.cursorMode) {
+                    Text("Trackpad (move hand to move pointer)").tag(CursorMode.relative)
+                    Text("Direct (hand position = pointer position)").tag(CursorMode.absolute)
+                }
+                .pickerStyle(.radioGroup)
+                Text(settings.cursorMode == .relative
+                     ? "Point with your index finger and move your hand. Make a fist to lift, reposition, and continue — like lifting a finger off a trackpad."
+                     : "The camera's field of view maps onto the screen under the pointer. No lifting needed, but it takes more arm movement.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if settings.cursorMode == .relative {
+                Section(header: Text("Trackpad Feel").font(.headline)) {
+                    labeledSlider("Pointer speed", value: $settings.pointerSpeed, range: 0.3...3.0, format: "%.2f×")
+                    labeledSlider("Acceleration", value: $settings.pointerAcceleration, range: 0.0...1.0, format: "%.2f",
+                                  hint: "Higher: slow movements are more precise, fast flicks travel further.")
+                }
+            } else {
+                Section(header: Text("Direct Mapping").font(.headline)) {
+                    labeledSlider("Sensitivity", value: $settings.cursorSensitivity, range: 0.5...3.0, format: "%.2f×",
+                                  hint: "Higher: less hand travel covers the whole screen.")
+                }
+            }
+
+            Section(header: Text("Smoothing").font(.headline)) {
+                labeledSlider("Responsive ↔ Steady", value: $settings.cursorSmoothing, range: 0.0...1.0, format: "%.2f",
+                              hint: "Steadier removes more hand tremor at the cost of a little lag.")
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Click & Scroll
+
+    private var clickScrollTab: some View {
+        Form {
+            Section(header: Text("Pinch to Click").font(.headline)) {
+                labeledSlider("Pinch trigger distance", value: Binding(
+                    get: { settings.pinchStartThreshold },
+                    set: {
+                        settings.pinchStartThreshold = $0
+                        settings.pinchReleaseThreshold = $0 + 0.10
+                    }
+                ), range: 0.12...0.34, format: "%.2f",
+                   hint: "How close thumb and index fingertips must get. Raise it if pinches are missed; lower it if clicks fire by accident.")
+                labeledSlider("Hold to drag after", value: $settings.dragHoldDelay, range: 0.25...0.9, format: "%.2f s",
+                              hint: "Moving while pinched starts a drag immediately; holding still this long also does.")
+                Toggle("Right-click with thumb + middle finger pinch", isOn: $settings.rightClickEnabled)
+            }
+
+            Section(header: Text("Two-Finger Scroll (✌)").font(.headline)) {
+                Toggle("Enable scrolling", isOn: $settings.scrollEnabled)
+                labeledSlider("Scroll speed", value: $settings.scrollSensitivity, range: 0.3...3.0, format: "%.2f×")
+                Toggle("Natural scrolling (content follows your hand)", isOn: $settings.naturalScrolling)
+                Toggle("Momentum (keep gliding after a quick flick)", isOn: $settings.scrollMomentum)
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Desktops
+
+    private var desktopsTab: some View {
+        Form {
+            Section(header: Text("Switch Desktops (🖐 swipe ← →)").font(.headline)) {
+                Toggle("Enable desktop swipes", isOn: $settings.swipeEnabled)
+                Picker("Direction", selection: $settings.naturalSwipeDirection) {
+                    Text("Swipe right → desktop on the right").tag(false)
+                    Text("Natural: swipe right → desktop on the left (like a trackpad)").tag(true)
+                }
+                labeledSlider("Swipe sensitivity", value: $settings.swipeSensitivity, range: 0.6...1.6, format: "%.2f",
+                              hint: "Higher accepts shorter, slower swipes. Lower if desktops switch when you just move your hand.")
+                Picker("Transition", selection: $settings.spaceSwitchStyle) {
+                    Text("Animated slide").tag(SpaceSwitchStyle.animated)
+                    Text("Fast slide").tag(SpaceSwitchStyle.fast)
+                    Text("Instant").tag(SpaceSwitchStyle.instant)
+                    Text("Keyboard shortcut (⌃← / ⌃→)").tag(SpaceSwitchStyle.keyboard)
+                }
+                HStack {
+                    Text("Test:")
+                    Button("◀︎ Previous") { NotificationCenter.default.post(name: .airTrackpadTestSwitch, object: SwipeDirection.left) }
+                    Button("Next ▶︎") { NotificationCenter.default.post(name: .airTrackpadTestSwitch, object: SwipeDirection.right) }
+                }
+                Text("Open your hand (all fingers up), then make one quick sideways swipe. Bringing the hand back is ignored for about a second, so it won't undo the switch.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section(header: Text("Mission Control (🖐 → 🤏 → 🖐)").font(.headline)) {
+                Toggle("Enable Mission Control gesture", isOn: $settings.missionControlEnabled)
+                labeledSlider("Gathered fingertips", value: $settings.fiveFingerPinchThreshold, range: 0.12...0.32, format: "%.2f")
+                labeledSlider("Open palm", value: $settings.fiveFingerOpenThreshold, range: 0.32...0.65, format: "%.2f")
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Components
+
+    private func permissionRow(granted: Bool, title: String, detail: String, action: @escaping () -> Void) -> some View {
+        HStack {
+            Image(systemName: granted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundColor(granted ? .green : .red)
+            VStack(alignment: .leading) {
+                Text(title).font(.body.bold())
+                Text(detail).font(.caption).foregroundColor(.secondary)
+            }
+            Spacer()
+            if !granted {
+                Button("Open Settings", action: action)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func labeledSlider(
+        _ title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        format: String,
+        hint: String? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(String(format: format, value.wrappedValue))
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            Slider(value: value, in: range)
+            if let hint {
+                Text(hint).font(.caption).foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+extension Notification.Name {
+    static let airTrackpadTestSwitch = Notification.Name("com.airtrackpad.testSpaceSwitch")
 }
